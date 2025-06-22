@@ -9,6 +9,11 @@ export interface UploadResult {
 
 export async function uploadImage(file: File): Promise<UploadResult> {
   try {
+    // Check if Blob token is available
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      throw new Error("Vercel Blob token not configured. Please check BLOB_READ_WRITE_TOKEN environment variable.")
+    }
+
     // Validate file type
     if (!file.type.startsWith("image/")) {
       throw new Error("File must be an image")
@@ -28,6 +33,7 @@ export async function uploadImage(file: File): Promise<UploadResult> {
     // Upload to Vercel Blob
     const blob = await put(filename, file, {
       access: "public",
+      token: process.env.BLOB_READ_WRITE_TOKEN,
     })
 
     return {

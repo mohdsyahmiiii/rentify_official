@@ -42,9 +42,10 @@ export async function POST(request: NextRequest) {
     // Check if owner has Stripe account set up
     const stripeAccountId = rental.items.profiles.stripe_account_id
     const isDevelopment = process.env.NODE_ENV === 'development'
+    const isTestAccount = stripeAccountId?.startsWith('acct_test_') || false
 
-    // In development, allow testing without real Stripe Connect account
-    if (!stripeAccountId && !isDevelopment) {
+    // Allow testing without real Stripe Connect account in development or with test accounts
+    if (!stripeAccountId && !isDevelopment && !isTestAccount) {
       return NextResponse.json({
         error: "Owner hasn't set up payment processing yet. Please contact the owner."
       }, { status: 400 })
@@ -52,6 +53,10 @@ export async function POST(request: NextRequest) {
 
     if (!stripeAccountId && isDevelopment) {
       console.log('Development mode: Creating checkout session without Connect account')
+    }
+
+    if (isTestAccount) {
+      console.log('Using test account: Creating checkout session without Connect transfer')
     }
 
     const serviceFee = rental.service_fee
@@ -98,7 +103,7 @@ export async function POST(request: NextRequest) {
       mode: "payment",
       success_url: `${request.headers.get("origin")}/rental/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${request.headers.get("origin")}/checkout?rental_id=${rentalId}`,
-      payment_intent_data: stripeAccountId ? {
+      payment_intent_data: (stripeAccountId && !isTestAccount) ? {
         application_fee_amount: Math.round(applicationFeeAmount * 100),
         transfer_data: {
           destination: stripeAccountId,

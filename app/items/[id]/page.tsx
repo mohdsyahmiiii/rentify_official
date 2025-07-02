@@ -46,138 +46,7 @@ type ItemData = {
   }
 }
 
-// Demo items data (keeping for demo purposes)
-const demoItems: Record<string, ItemData> = {
-  "1": {
-  id: 1,
-  name: "Professional DSLR Camera",
-  description:
-    "Canon EOS 5D Mark IV with 24-70mm lens, perfect for professional photography and videography. This camera has been well-maintained and comes with all original accessories including battery, charger, and camera bag.",
-  longDescription:
-    "This professional-grade DSLR camera is perfect for photographers of all skill levels. The Canon EOS 5D Mark IV features a 30.4MP full-frame CMOS sensor, DIGIC 6+ image processor, and 4K video recording capabilities. The included 24-70mm f/2.8L lens is ideal for portraits, landscapes, and general photography. The camera has been professionally serviced and is in excellent condition.",
-  price: 25,
-  category: "Electronics",
-  owner: {
-    name: "John D.",
-    avatar: "/placeholder-user.jpg",
-    rating: 4.9,
-    reviews: 47,
-    joinDate: "2022",
-    responseTime: "within an hour",
-    verified: true,
-  },
-  rating: 4.8,
-  reviews: 124,
-  location: "New York, NY",
-  images: [
-    "/placeholder.svg?height=400&width=600",
-    "/placeholder.svg?height=400&width=600",
-    "/placeholder.svg?height=400&width=600",
-    "/placeholder.svg?height=400&width=600",
-  ],
-  features: [
-    "30.4MP Full-Frame CMOS Sensor",
-    "4K Video Recording",
-    "Dual Pixel CMOS AF",
-    "Built-in Wi-Fi and GPS",
-    "Weather Sealed Body",
-    "Includes 24-70mm f/2.8L Lens",
-  ],
-  availability: {
-    available: true,
-    nextAvailable: "2024-01-15",
-  },
-  policies: {
-    cancellation: "Free cancellation up to 24 hours before pickup",
-    damage: "Damage protection included",
-    lateFee: "$10 per day for late returns",
-  },
-  },
-  "2": {
-    id: 2,
-    name: "Mountain Bike",
-    description: "Trek Mountain Bike, perfect for trails and outdoor adventures.",
-    longDescription: "This high-quality mountain bike is perfect for trail riding and outdoor adventures. Features a lightweight aluminum frame, 21-speed transmission, and front suspension for a smooth ride on any terrain.",
-    price: 15 * 4.7,
-    category: "Sports",
-    owner: {
-      name: "Sarah M.",
-      avatar: "/placeholder-user.jpg",
-      rating: 4.9,
-      reviews: 32,
-      joinDate: "2023",
-      responseTime: "within 2 hours",
-      verified: true,
-    },
-    rating: 4.9,
-    reviews: 89,
-    location: "Penang",
-    images: ["/placeholder.svg?height=400&width=600", "/placeholder.svg?height=400&width=600"],
-    features: ["Lightweight Aluminum Frame", "21-Speed Transmission", "Front Suspension", "All-Terrain Tires"],
-    availability: { available: true },
-    policies: {
-      cancellation: "Free cancellation up to 12 hours before pickup",
-      damage: "Damage protection included",
-      lateFee: "$5 per day for late returns",
-    },
-  },
-  "3": {
-    id: 3,
-    name: "Power Drill Set",
-    description: "Complete power drill set with bits and accessories.",
-    longDescription: "Professional-grade power drill set perfect for home improvement projects. Includes various drill bits, screwdriver attachments, and a carrying case.",
-    price: 12 * 4.7,
-    category: "Tools",
-    owner: {
-      name: "Mike R.",
-      avatar: "/placeholder-user.jpg",
-      rating: 4.7,
-      reviews: 28,
-      joinDate: "2022",
-      responseTime: "within 4 hours",
-      verified: true,
-    },
-    rating: 4.7,
-    reviews: 156,
-    location: "Johor Bahru",
-    images: ["/placeholder.svg?height=400&width=600"],
-    features: ["18V Battery", "Multiple Drill Bits", "LED Light", "Carrying Case"],
-    availability: { available: false, nextAvailable: "2024-01-20" },
-    policies: {
-      cancellation: "Free cancellation up to 24 hours before pickup",
-      damage: "Damage protection included",
-      lateFee: "$8 per day for late returns",
-    },
-  },
-}
 
-const reviews = [
-  {
-    id: 1,
-    user: "Alice Johnson",
-    avatar: "/placeholder-user.jpg",
-    rating: 5,
-    date: "2024-01-05",
-    comment: "Amazing camera! John was very helpful and the equipment was in perfect condition. Highly recommend!",
-  },
-  {
-    id: 2,
-    user: "Mike Wilson",
-    avatar: "/placeholder-user.jpg",
-    rating: 5,
-    date: "2024-01-02",
-    comment:
-      "Great experience renting from John. The camera worked perfectly for my wedding shoot. Will definitely rent again!",
-  },
-  {
-    id: 3,
-    user: "Sarah Brown",
-    avatar: "/placeholder-user.jpg",
-    rating: 4,
-    date: "2023-12-28",
-    comment: "Good quality camera, exactly as described. Pickup and return process was smooth.",
-  },
-]
 
 export default function ItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -196,79 +65,63 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
   const fetchItemData = async () => {
     try {
       setError(null)
+      setLoading(true)
 
-      // Check if it's a real item (prefixed with "real-") or demo item
-      if (resolvedParams.id.startsWith('real-')) {
-        // Only show loading for real items that need database fetch
-        setLoading(true)
-        // Fetch real item from database
-        const realItemId = resolvedParams.id.replace('real-', '')
-        const supabase = createClient()
+      const supabase = createClient()
 
-        const { data: item, error: dbError } = await supabase
-          .from('items')
-          .select(`
-            *,
-            categories(name),
-            profiles(full_name)
-          `)
-          .eq('id', realItemId)
-          .single()
+      const { data: item, error: dbError } = await supabase
+        .from('items')
+        .select(`
+          *,
+          categories(name),
+          profiles(full_name)
+        `)
+        .eq('id', resolvedParams.id)
+        .single()
 
-        if (dbError || !item) {
-          setError('Item not found')
-          return
-        }
-
-        // Transform database item to match expected format
-        const transformedItem: ItemData = {
-          id: resolvedParams.id,
-          name: item.title,
-          description: item.description,
-          longDescription: item.description, // Use same description for now
-          price: item.price_per_day,
-          category: item.categories?.name || 'Other',
-          owner: {
-            name: item.profiles?.full_name || 'Unknown',
-            avatar: '/placeholder-user.jpg',
-            rating: 4.8, // Default values for now
-            reviews: 15,
-            joinDate: '2024',
-            responseTime: 'within a few hours',
-            verified: true,
-          },
-          rating: item.rating || 4.5,
-          reviews: item.total_reviews || 0,
-          location: item.location,
-          images: item.images || ['/placeholder.svg?height=400&width=600'],
-          features: item.features || ['High Quality', 'Well Maintained', 'Ready to Use'],
-          availability: {
-            available: item.is_available,
-            nextAvailable: item.is_available ? undefined : '2024-01-25',
-          },
-          policies: {
-            cancellation: 'Free cancellation up to 24 hours before pickup',
-            damage: 'Damage protection included',
-            lateFee: '$10 per day for late returns',
-          },
-        }
-
-        setItemData(transformedItem)
-        setLoading(false) // Only set loading false after database fetch
-      } else {
-        // Use demo item data - no loading needed
-        const demoItem = demoItems[resolvedParams.id]
-        if (demoItem) {
-          setItemData(demoItem)
-          setLoading(false) // Immediate for demo items
-        } else {
-          setError('Demo item not found')
-          setLoading(false)
-        }
+      if (dbError || !item) {
+        setError('Item not found')
+        return
       }
+
+      // Transform database item to match expected format
+      const transformedItem: ItemData = {
+        id: item.id,
+        name: item.title,
+        description: item.description,
+        longDescription: item.long_description || item.description,
+        price: item.price_per_day,
+        category: item.categories?.name || 'Other',
+        owner: {
+          name: item.profiles?.full_name || 'Unknown',
+          avatar: '/placeholder-user.jpg',
+          rating: 4.8, // Default values for now
+          reviews: 15,
+          joinDate: '2024',
+          responseTime: 'within a few hours',
+          verified: true,
+        },
+        rating: item.rating || 4.5,
+        reviews: item.total_reviews || 0,
+        location: item.location,
+        images: item.images || ['/placeholder.svg?height=400&width=600'],
+        features: item.features || ['High Quality', 'Well Maintained', 'Ready to Use'],
+        availability: {
+          available: item.is_available,
+          nextAvailable: item.is_available ? undefined : '2024-01-25',
+        },
+        policies: {
+          cancellation: item.cancellation_policy || 'Free cancellation up to 24 hours before pickup',
+          damage: item.damage_policy || 'Damage protection included',
+          lateFee: `$${item.late_fee_per_day || 10} per day for late returns`,
+        },
+      }
+
+      setItemData(transformedItem)
     } catch (err) {
       console.error('Error fetching item:', err)
       setError('Failed to load item')
+    } finally {
       setLoading(false)
     }
   }
@@ -424,7 +277,7 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <div className="text-3xl font-bold text-black">{formatCurrency(itemData.price, "MYR")}</div>
+                    <div className="text-3xl font-bold text-black">{formatCurrency(itemData.price)}</div>
                     <div className="text-gray-600">per day</div>
                   </div>
                   <Badge className={itemData.availability.available ? "bg-green-500" : "bg-red-500"}>
@@ -567,37 +420,9 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {reviews.map((review) => (
-                  <div key={review.id} className="space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="w-10 h-10">
-                        <AvatarImage src={review.avatar || "/placeholder.svg"} alt={review.user} />
-                        <AvatarFallback className="bg-gray-200 text-black">{review.user.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium text-black">{review.user}</span>
-                          <div className="flex">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`w-4 h-4 ${
-                                  i < review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        <span className="text-sm text-gray-600">{review.date}</span>
-                      </div>
-                    </div>
-                    <p className="text-gray-700 ml-13">{review.comment}</p>
-                    {review.id !== reviews[reviews.length - 1].id && <Separator />}
-                  </div>
-                ))}
-                <Button variant="outline" className="w-full border-black hover:bg-black hover:text-white">
-                  Show All Reviews
-                </Button>
+                <div className="text-center py-8">
+                  <p className="text-gray-600">No reviews yet. Be the first to review this item!</p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

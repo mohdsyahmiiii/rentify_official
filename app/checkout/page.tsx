@@ -22,48 +22,7 @@ import { formatCurrency } from "@/lib/utils/currency"
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
-// Demo items data (same as item details page)
-const demoItems: Record<string, any> = {
-  "1": {
-    id: "1",
-    name: "Professional DSLR Camera",
-    description: "Canon EOS 5D Mark IV with 24-70mm lens, perfect for professional photography",
-    price: 120,
-    owner: "John D.",
-    rating: 4.8,
-    reviews: 124,
-    location: "Kuala Lumpur, Kuala Lumpur",
-    image: "/placeholder.svg?height=300&width=400",
-    category: "Electronics",
-    images: ["/placeholder.svg?height=300&width=400"],
-  },
-  "2": {
-    id: "2",
-    name: "Mountain Bike",
-    description: "Trek X-Caliber 8 mountain bike, perfect for trails and city riding",
-    price: 80,
-    owner: "Sarah M.",
-    rating: 4.6,
-    reviews: 89,
-    location: "Petaling Jaya, Selangor",
-    image: "/placeholder.svg?height=300&width=400",
-    category: "Sports",
-    images: ["/placeholder.svg?height=300&width=400"],
-  },
-  "3": {
-    id: "3",
-    name: "Gaming Console",
-    description: "PlayStation 5 with 2 controllers and popular games included",
-    price: 100,
-    owner: "Mike T.",
-    rating: 4.9,
-    reviews: 156,
-    location: "Shah Alam, Selangor",
-    image: "/placeholder.svg?height=300&width=400",
-    category: "Electronics",
-    images: ["/placeholder.svg?height=300&width=400"],
-  }
-}
+
 
 interface ItemData {
   id: string
@@ -129,61 +88,44 @@ export default function CheckoutPage() {
     try {
       setItemError(null)
 
-      // Check if it's a real item (prefixed with "real-") or demo item
-      if (itemId.startsWith('real-')) {
-        // Only show loading for real items that need database fetch
-        setItemLoading(true)
+      setItemLoading(true)
+      const supabase = createClient()
 
-        // Fetch real item from database
-        const realItemId = itemId.replace('real-', '')
-        const supabase = createClient()
+      const { data: item, error } = await supabase
+        .from('items')
+        .select(`
+          *,
+          categories(name),
+          profiles!items_owner_id_fkey(full_name)
+        `)
+        .eq('id', itemId)
+        .single()
 
-        const { data: item, error } = await supabase
-          .from('items')
-          .select(`
-            *,
-            categories(name),
-            profiles!items_owner_id_fkey(full_name)
-          `)
-          .eq('id', realItemId)
-          .single()
-
-        if (error) {
-          throw error
-        }
-
-        if (!item) {
-          throw new Error('Item not found')
-        }
-
-        // Transform database item to match expected format
-        const transformedItem: ItemData = {
-          id: itemId,
-          name: item.title,
-          description: item.description,
-          price: item.price_per_day,
-          owner: item.profiles?.full_name || 'Unknown Owner',
-          rating: 4.5, // Default rating for now
-          reviews: 0, // Default reviews for now
-          location: item.location,
-          image: item.images?.[0] || '/placeholder.svg',
-          category: item.categories?.name || 'Uncategorized',
-          images: item.images || ['/placeholder.svg'],
-        }
-
-        setItemData(transformedItem)
-        setItemLoading(false) // Only set loading false after database fetch
-      } else {
-        // Use demo item data - no loading needed
-        const demoItem = demoItems[itemId]
-        if (demoItem) {
-          setItemData(demoItem)
-          setItemLoading(false) // Immediate for demo items
-        } else {
-          setItemError('Item not found')
-          setItemLoading(false)
-        }
+      if (error) {
+        throw error
       }
+
+      if (!item) {
+        throw new Error('Item not found')
+      }
+
+      // Transform database item to match expected format
+      const transformedItem: ItemData = {
+        id: itemId,
+        name: item.title,
+        description: item.description,
+        price: item.price_per_day,
+        owner: item.profiles?.full_name || 'Unknown Owner',
+        rating: item.rating || 4.5,
+        reviews: item.total_reviews || 0,
+        location: item.location,
+        image: item.images?.[0] || '/placeholder.svg',
+        category: item.categories?.name || 'Uncategorized',
+        images: item.images || ['/placeholder.svg'],
+      }
+
+      setItemData(transformedItem)
+      setItemLoading(false)
     } catch (err) {
       console.error('Error fetching item:', err)
       setItemError('Failed to load item')
@@ -227,25 +169,13 @@ export default function CheckoutPage() {
     try {
       const supabase = createClient()
 
-      // Check if this is a demo item (not in database)
-      if (!itemData.id.startsWith('real-')) {
-        // For demo items, skip database creation and go directly to agreement
-        // Generate a temporary rental ID for demo purposes
-        const demoRentalId = `demo-rental-${Date.now()}`
-        setRentalId(demoRentalId)
-        setStep(2) // Move to agreement step
-        setLoading(false) // Important: Set loading to false before returning
-        return
-      }
+      // Create actual rental record
 
-      // For real items, create actual rental record
-      const realItemId = itemData.id.replace('real-', '')
-
-      // First, get the real item to get the owner_id
+      // First, get the item to get the owner_id
       const { data: realItem, error: itemError } = await supabase
         .from('items')
         .select('owner_id')
-        .eq('id', realItemId)
+        .eq('id', itemData.id)
         .single()
 
       if (itemError || !realItem) {
@@ -253,7 +183,7 @@ export default function CheckoutPage() {
       }
 
       const rentalData = {
-        item_id: realItemId,
+        item_id: itemData.id,
         renter_id: user.id,
         owner_id: realItem.owner_id,
         start_date: startDate?.toISOString().split('T')[0], // Format as YYYY-MM-DD
@@ -572,16 +502,11 @@ export default function CheckoutPage() {
 
                 <div className="flex justify-end">
                   <Button
-                    onClick={itemData?.id.startsWith('real-') ? handleCreateRental : undefined}
-                    className={`text-white ${
-                      itemData?.id.startsWith('real-')
-                        ? "bg-black hover:bg-gray-800"
-                        : "bg-gray-400 cursor-not-allowed"
-                    }`}
-                    disabled={!startDate || !endDate || loading || !itemData?.id.startsWith('real-')}
+                    onClick={handleCreateRental}
+                    className="bg-black text-white hover:bg-gray-800"
+                    disabled={!startDate || !endDate || loading}
                   >
-                    {loading ? "Creating..." :
-                     itemData?.id.startsWith('real-') ? "Continue to Agreement" : "Demo Item - Agreement Disabled"}
+                    {loading ? "Creating..." : "Continue to Agreement"}
                   </Button>
                 </div>
               </>

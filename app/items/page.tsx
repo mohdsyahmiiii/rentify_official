@@ -13,125 +13,38 @@ import Link from "next/link"
 import { formatCurrency } from "@/lib/utils/currency"
 import { createClient } from "@/lib/supabase/client"
 
-const allItems = [
-  {
-    id: 1,
-    name: "Professional DSLR Camera",
-    category: "Electronics",
-    price: 25 * 4.7,
-    rating: 4.8,
-    reviews: 124,
-    location: "Kuala Lumpur",
-    image: "/placeholder.svg?height=200&width=300",
-    owner: "John D.",
-    available: true,
-    description: "Canon EOS 5D Mark IV with 24-70mm lens",
-  },
-  {
-    id: 2,
-    name: "Mountain Bike",
-    category: "Sports",
-    price: 15 * 4.7,
-    rating: 4.9,
-    reviews: 89,
-    location: "Penang",
-    image: "/placeholder.svg?height=200&width=300",
-    owner: "Sarah M.",
-    available: true,
-    description: "Trek Mountain Bike, perfect for trails",
-  },
-  {
-    id: 3,
-    name: "Power Drill Set",
-    category: "Tools",
-    price: 12 * 4.7,
-    rating: 4.7,
-    reviews: 156,
-    location: "Johor Bahru",
-    image: "/placeholder.svg?height=200&width=300",
-    owner: "Mike R.",
-    available: false,
-    description: "Complete power drill set with bits",
-  },
-  {
-    id: 4,
-    name: "Gaming Console",
-    category: "Electronics",
-    price: 20 * 4.7,
-    rating: 4.9,
-    reviews: 203,
-    location: "Malacca",
-    image: "/placeholder.svg?height=200&width=300",
-    owner: "Alex K.",
-    available: true,
-    description: "PlayStation 5 with controllers",
-  },
-  {
-    id: 5,
-    name: "Camping Tent",
-    category: "Outdoor",
-    price: 18 * 4.7,
-    rating: 4.6,
-    reviews: 67,
-    location: "Kota Kinabalu",
-    image: "/placeholder.svg?height=200&width=300",
-    owner: "Emma L.",
-    available: true,
-    description: "4-person waterproof camping tent",
-  },
-  {
-    id: 6,
-    name: "Electric Guitar",
-    category: "Music",
-    price: 22 * 4.7,
-    rating: 4.8,
-    reviews: 91,
-    location: "Kuching",
-    image: "/placeholder.svg?height=200&width=300",
-    owner: "David W.",
-    available: true,
-    description: "Fender Stratocaster electric guitar",
-  },
-]
+interface Item {
+  id: string
+  name: string
+  category: string
+  price: number
+  rating: number
+  reviews: number
+  location: string
+  image: string
+  owner: string
+  available: boolean
+  description: string
+}
 
 export default function ItemsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
-  const [priceRange, setPriceRange] = useState([0, 50])
+  const [priceRange, setPriceRange] = useState([0, 500])
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [sortBy, setSortBy] = useState("popular")
-  const [realItems, setRealItems] = useState([])
+  const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Fetch real items from database
+  // Fetch items from database
   useEffect(() => {
-    fetchRealItems()
+    fetchItems()
   }, [])
 
-  const fetchRealItems = async () => {
+  const fetchItems = async () => {
     try {
       const supabase = createClient()
 
-      // First, let's fetch ALL items to see what we have
-      console.log('Fetching all items from database...')
-      const { data: allDbItems, error: allError } = await supabase
-        .from('items')
-        .select(`
-          *,
-          categories(name),
-          profiles(full_name)
-        `)
-        .order('created_at', { ascending: false })
-
-      console.log('All items from database:', allDbItems)
-      console.log('Database error:', allError)
-
-      if (allError) {
-        console.error('Error fetching all items:', allError)
-        return
-      }
-
-      // Now fetch items that should be displayed (less restrictive)
       const { data: items, error } = await supabase
         .from('items')
         .select(`
@@ -139,44 +52,37 @@ export default function ItemsPage() {
           categories(name),
           profiles(full_name)
         `)
-        .in('status', ['approved', 'pending']) // Include both approved and pending
+        .in('status', ['approved', 'pending'])
         .order('created_at', { ascending: false })
-
-      console.log('Filtered items for display:', items)
 
       if (error) {
         console.error('Error fetching items:', error)
       } else {
         // Transform database items to match the expected format
         const transformedItems = items?.map(item => ({
-          id: `real-${item.id}`, // Prefix to distinguish from dummy items
+          id: item.id,
           name: item.title,
           category: item.categories?.name || 'Other',
           price: item.price_per_day,
-          rating: item.rating || 4.5, // Default rating if none
+          rating: item.rating || 4.5,
           reviews: item.total_reviews || 0,
           location: item.location,
           image: item.images?.[0] || "/placeholder.svg?height=200&width=300",
           owner: item.profiles?.full_name || "Unknown",
           available: item.is_available,
           description: item.description,
-          isRealItem: true // Flag to identify real items
         })) || []
 
-        console.log('Transformed items:', transformedItems)
-        setRealItems(transformedItems)
+        setItems(transformedItems)
       }
     } catch (error) {
-      console.error('Error fetching real items:', error)
+      console.error('Error fetching items:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  // Combine real items with dummy items
-  const combinedItems = [...realItems, ...allItems]
-
-  const filteredItems = combinedItems.filter((item) => {
+  const filteredItems = items.filter((item) => {
     const matchesSearch =
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.description.toLowerCase().includes(searchTerm.toLowerCase())
@@ -193,7 +99,7 @@ export default function ItemsPage() {
           <div className="text-center py-4 mb-4">
             <div className="inline-flex items-center px-4 py-2 bg-blue-50 rounded-lg">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-              <span className="text-blue-600 text-sm">Loading real listings...</span>
+              <span className="text-blue-600 text-sm">Loading items...</span>
             </div>
           </div>
         )}
@@ -262,21 +168,16 @@ export default function ItemsPage() {
           {/* Price Range */}
           <div className="max-w-md">
             <label className="block text-sm font-medium text-black mb-2">
-              Price Range: {formatCurrency(priceRange[0], "MYR")} - {formatCurrency(priceRange[1], "MYR")} per day
+              Price Range: {formatCurrency(priceRange[0])} - {formatCurrency(priceRange[1])} per day
             </label>
-            <Slider value={priceRange} onValueChange={setPriceRange} max={250} step={1} className="w-full" />
+            <Slider value={priceRange} onValueChange={setPriceRange} max={500} step={5} className="w-full" />
           </div>
         </div>
 
         {/* Results Count */}
         <div className="flex justify-between items-center mb-6">
           <p className="text-gray-600">
-            Showing {filteredItems.length} of {combinedItems.length} items
-            {realItems.length > 0 && (
-              <span className="text-sm text-green-600 ml-2">
-                ({realItems.length} real listings + {allItems.length} demo items)
-              </span>
-            )}
+            Showing {filteredItems.length} of {items.length} items
           </p>
         </div>
 
@@ -301,18 +202,13 @@ export default function ItemsPage() {
                     >
                       {item.available ? "Available" : "Rented"}
                     </Badge>
-                    {item.isRealItem && (
-                      <Badge className="bg-blue-500 hover:bg-blue-600 text-xs">
-                        Real
-                      </Badge>
-                    )}
                   </div>
                 </div>
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
                     <CardTitle className="text-lg text-black">{item.name}</CardTitle>
                     <div className="text-right">
-                      <div className="text-xl font-bold text-black">{formatCurrency(item.price, "MYR")}</div>
+                      <div className="text-xl font-bold text-black">{formatCurrency(item.price)}</div>
                       <div className="text-sm text-gray-600">/day</div>
                     </div>
                   </div>
@@ -357,11 +253,6 @@ export default function ItemsPage() {
                       >
                         {item.available ? "Available" : "Rented"}
                       </Badge>
-                      {item.isRealItem && (
-                        <Badge className="bg-blue-500 hover:bg-blue-600 text-xs">
-                          Real
-                        </Badge>
-                      )}
                     </div>
                   </div>
                   <div className="flex-1 p-6">
@@ -371,7 +262,7 @@ export default function ItemsPage() {
                         <p className="text-gray-600">{item.description}</p>
                       </div>
                       <div className="text-right">
-                        <div className="text-2xl font-bold text-black">{formatCurrency(item.price, "MYR")}</div>
+                        <div className="text-2xl font-bold text-black">{formatCurrency(item.price)}</div>
                         <div className="text-sm text-gray-600">/day</div>
                       </div>
                     </div>
@@ -396,14 +287,14 @@ export default function ItemsPage() {
           </div>
         )}
 
-        {filteredItems.length === 0 && (
+        {filteredItems.length === 0 && !loading && (
           <div className="text-center py-12">
             <p className="text-gray-600 text-lg">No items found matching your criteria.</p>
             <Button
               onClick={() => {
                 setSearchTerm("")
                 setSelectedCategory("all")
-                setPriceRange([0, 50])
+                setPriceRange([0, 500])
               }}
               className="mt-4 bg-black text-white hover:bg-gray-800"
             >

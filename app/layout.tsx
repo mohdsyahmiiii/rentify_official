@@ -58,11 +58,6 @@ export default function RootLayout({
                       How It Works
                     </Link>
                   </li>
-                  <li>
-                    <Link href="/safety" className="hover:text-white">
-                      Safety
-                    </Link>
-                  </li>
                 </ul>
               </div>
               <div>
@@ -78,16 +73,6 @@ export default function RootLayout({
                       Contact Us
                     </Link>
                   </li>
-                  <li>
-                    <Link href="/trust-safety" className="hover:text-white">
-                      Trust & Safety
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/insurance" className="hover:text-white">
-                      Insurance
-                    </Link>
-                  </li>
                 </ul>
               </div>
               <div>
@@ -101,16 +86,6 @@ export default function RootLayout({
                   <li>
                     <Link href="/careers" className="hover:text-white">
                       Careers
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/press" className="hover:text-white">
-                      Press
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/blog" className="hover:text-white">
-                      Blog
                     </Link>
                   </li>
                 </ul>

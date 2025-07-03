@@ -167,17 +167,11 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="mb-8">
           <div>
             <h1 className="text-3xl font-bold text-black">Dashboard</h1>
             <p className="text-gray-600">Welcome back! Here's what's happening with your rentals.</p>
           </div>
-          <Button asChild className="bg-black text-white hover:bg-gray-800">
-            <Link href="/list-item">
-              <Plus className="w-4 h-4 mr-2" />
-              List New Item
-            </Link>
-          </Button>
         </div>
 
         {/* Stats Cards */}

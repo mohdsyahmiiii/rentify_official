@@ -1,16 +1,6 @@
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Shield, Users, Zap } from "lucide-react"
 import Link from "next/link"
-
-const categories = [
-  { name: "Electronics", count: 1250, icon: "📱" },
-  { name: "Tools", count: 890, icon: "🔧" },
-  { name: "Sports", count: 670, icon: "⚽" },
-  { name: "Photography", count: 450, icon: "📸" },
-  { name: "Music", count: 320, icon: "🎵" },
-  { name: "Outdoor", count: 540, icon: "🏕️" },
-]
 
 export default function HomePage() {
   return (
@@ -66,26 +56,6 @@ export default function HomePage() {
               <h3 className="text-xl font-semibold mb-2 text-black">Instant Access</h3>
               <p className="text-gray-600">Book items instantly and pick them up the same day.</p>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Categories Section */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12 text-black">Popular Categories</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {categories.map((category) => (
-              <Link key={category.name} href={`/items?category=${category.name.toLowerCase()}`}>
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-black">
-                  <CardContent className="p-6 text-center">
-                    <div className="text-3xl mb-2">{category.icon}</div>
-                    <h3 className="font-semibold text-black">{category.name}</h3>
-                    <p className="text-sm text-gray-600">{category.count} items</p>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
           </div>
         </div>
       </section>

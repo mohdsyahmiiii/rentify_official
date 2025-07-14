@@ -10,6 +10,8 @@ import Image from "next/image"
 import Link from "next/link"
 import { formatCurrency } from "@/lib/utils/currency"
 import { createClient } from "@/lib/supabase/client"
+import { MessagesList } from "@/components/messages-list"
+import type { User } from "@supabase/supabase-js"
 
 // Define types for our data
 type Item = {
@@ -50,6 +52,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("overview")
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState<string | null>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [userStats, setUserStats] = useState({
     totalEarnings: 0,
     activeRentals: 0,
@@ -80,6 +83,7 @@ export default function DashboardPage() {
         return
       }
 
+      setUser(user)
       const userId = user.id
 
       // Fetch both items and rentals in parallel for better performance
@@ -234,7 +238,7 @@ export default function DashboardPage() {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-white border-2">
+          <TabsList className="grid w-full grid-cols-5 bg-white border-2">
             <TabsTrigger value="overview" className="data-[state=active]:bg-black data-[state=active]:text-white">
               Overview
             </TabsTrigger>
@@ -243,6 +247,9 @@ export default function DashboardPage() {
             </TabsTrigger>
             <TabsTrigger value="my-rentals" className="data-[state=active]:bg-black data-[state=active]:text-white">
               My Rentals
+            </TabsTrigger>
+            <TabsTrigger value="messages" className="data-[state=active]:bg-black data-[state=active]:text-white">
+              Messages
             </TabsTrigger>
             <TabsTrigger value="transactions" className="data-[state=active]:bg-black data-[state=active]:text-white">
               Transactions
@@ -485,6 +492,11 @@ export default function DashboardPage() {
                 ))
               )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="messages" className="space-y-6">
+            <h2 className="text-2xl font-bold text-black">Messages</h2>
+            <MessagesList user={user} />
           </TabsContent>
 
           <TabsContent value="transactions" className="space-y-6">

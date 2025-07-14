@@ -5,11 +5,14 @@ import { Button } from "@/components/ui/button"
 import { Plus, Menu } from "lucide-react"
 import Link from "next/link"
 import { UserMenu } from "@/components/user-menu"
+import { MessageNotification } from "@/components/message-notification"
+import { useChatModal } from "@/contexts/chat-modal-context"
 import { createClient } from "@/lib/supabase/client"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 
 export function Navigation() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
+  const { openChat } = useChatModal()
   const supabase = createClient()
 
   useEffect(() => {
@@ -30,6 +33,15 @@ export function Navigation() {
 
     return () => subscription.unsubscribe()
   }, [supabase.auth])
+
+  const handleConversationClick = (conversation: {
+    recipientId: string
+    recipientName: string
+    itemId: string
+    itemTitle: string
+  }) => {
+    openChat(conversation)
+  }
 
   return (
     <nav className="bg-white border-b-2 border-gray-100 sticky top-0 z-50">
@@ -56,6 +68,9 @@ export function Navigation() {
                 List Item
               </Link>
             </Button>
+
+            {/* Message Notification */}
+            {user && <MessageNotification user={user} onConversationClick={handleConversationClick} />}
 
             {/* User Menu */}
             <UserMenu />

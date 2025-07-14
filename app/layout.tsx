@@ -5,6 +5,7 @@ import "./globals.css"
 import Link from "next/link"
 import { Suspense } from "react"
 import { Navigation } from "@/components/navigation"
+import { ChatModalProvider } from "@/contexts/chat-modal-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -22,17 +23,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        {/* Navigation */}
-        <Navigation />
+        <ChatModalProvider>
+          {/* Navigation */}
+          <Navigation />
 
-        <Suspense>{children}</Suspense>
+          <Suspense>{children}</Suspense>
 
         {/* Footer */}
         <footer className="bg-black text-white py-12 mt-16">
           <div className="container mx-auto px-4">
-            <div className="grid md:grid-cols-4 gap-8">
-              <div>
-                <div className="flex items-center space-x-2 mb-4">
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-8">
+                <div className="flex items-center space-x-2 mb-4 justify-center">
                   <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
                     <span className="text-black font-bold text-lg">R</span>
                   </div>
@@ -40,73 +42,13 @@ export default function RootLayout({
                 </div>
                 <p className="text-gray-300">The ultimate peer-to-peer rental marketplace. Rent anything, anytime.</p>
               </div>
-              <div>
-                <h3 className="font-semibold mb-4">Platform</h3>
-                <ul className="space-y-2 text-gray-300">
-                  <li>
-                    <Link href="/items" className="hover:text-white">
-                      Browse Items
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/list-item" className="hover:text-white">
-                      List Your Items
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/how-it-works" className="hover:text-white">
-                      How It Works
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-4">Support</h3>
-                <ul className="space-y-2 text-gray-300">
-                  <li>
-                    <Link href="/help" className="hover:text-white">
-                      Help Center
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/contact" className="hover:text-white">
-                      Contact Us
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-4">Company</h3>
-                <ul className="space-y-2 text-gray-300">
-                  <li>
-                    <Link href="/about" className="hover:text-white">
-                      About Us
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/careers" className="hover:text-white">
-                      Careers
-                    </Link>
-                  </li>
-                </ul>
-              </div>
             </div>
-            <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
+            <div className="border-t border-gray-800 mt-8 pt-8 text-center">
               <p className="text-gray-300">© 2025 Rentify. All rights reserved.</p>
-              <div className="flex space-x-6 mt-4 md:mt-0">
-                <Link href="/privacy" className="text-gray-300 hover:text-white">
-                  Privacy Policy
-                </Link>
-                <Link href="/terms" className="text-gray-300 hover:text-white">
-                  Terms of Service
-                </Link>
-                <Link href="/cookies" className="text-gray-300 hover:text-white">
-                  Cookie Policy
-                </Link>
-              </div>
             </div>
           </div>
         </footer>
+        </ChatModalProvider>
       </body>
     </html>
   )

@@ -12,6 +12,8 @@ import Image from "next/image"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { formatCurrency } from "@/lib/utils/currency"
+import { ChatModal } from "@/components/chat-modal"
+import type { User } from "@supabase/supabase-js"
 
 // Type definitions
 type ItemData = {
@@ -54,6 +56,9 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
   const [itemData, setItemData] = useState<ItemData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isChatOpen, setIsChatOpen] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [ownerId, setOwnerId] = useState<string>("")
 
   // Unwrap the params Promise
   const resolvedParams = use(params)
@@ -61,6 +66,16 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
   useEffect(() => {
     fetchItemData()
   }, [resolvedParams.id])
+
+  // Get current user
+  useEffect(() => {
+    const getUser = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    getUser()
+  }, [])
 
   const fetchItemData = async () => {
     try {
@@ -118,6 +133,7 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
       }
 
       setItemData(transformedItem)
+      setOwnerId(item.owner_id)
     } catch (err) {
       console.error('Error fetching item:', err)
       setError('Failed to load item')
@@ -290,7 +306,12 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
                     <Button asChild className="w-full bg-black text-white hover:bg-gray-800" size="lg">
                       <Link href={`/checkout?item=${resolvedParams.id}`}>Rent Now</Link>
                     </Button>
-                    <Button variant="outline" className="w-full border-black hover:bg-black hover:text-white">
+                    <Button
+                      variant="outline"
+                      className="w-full border-black hover:bg-black hover:text-white"
+                      onClick={() => setIsChatOpen(true)}
+                      disabled={!user || user.id === ownerId}
+                    >
                       <MessageCircle className="w-4 h-4 mr-2" />
                       Message Owner
                     </Button>
@@ -428,6 +449,18 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Chat Modal */}
+      {itemData && ownerId && (
+        <ChatModal
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          recipientId={ownerId}
+          recipientName={itemData.owner.name}
+          itemId={resolvedParams.id}
+          itemTitle={itemData.name}
+        />
+      )}
     </div>
   )
 }

@@ -1,12 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { FileText, Download, Check, Loader2, AlertCircle } from "lucide-react"
 
 interface RentalAgreementProps {
@@ -27,49 +30,52 @@ export function RentalAgreement({
   const [generatedAgreement, setGeneratedAgreement] = useState(agreement || "")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [signature, setSignature] = useState("")
-  const [signed, setSigned] = useState(false)
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [showAgreementModal, setShowAgreementModal] = useState(false)
 
-  const generateAgreement = async () => {
-    setLoading(true)
+  // Update generated agreement when prop changes
+  React.useEffect(() => {
+    if (agreement && agreement !== generatedAgreement) {
+      setGeneratedAgreement(agreement)
+    }
+  }, [agreement, generatedAgreement])
+
+
+
+  const handleAgreementAcceptance = async (checked: boolean) => {
+    setAgreedToTerms(checked)
     setError("")
 
-    try {
-      const response = await fetch("/api/generate-agreement", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ rentalId }),
-      })
+    if (checked) {
+      setLoading(true)
+      try {
+        // Save agreement acceptance to database
+        const response = await fetch("/api/accept-agreement", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            rentalId,
+            isOwner
+          }),
+        })
 
-      const data = await response.json()
+        const data = await response.json()
 
-      if (data.error) {
-        setError(data.error)
-      } else {
-        setGeneratedAgreement(data.agreement)
-        onAgreementGenerated?.(data.agreement)
+        if (data.error) {
+          setError(data.error)
+          setAgreedToTerms(false) // Reset checkbox on error
+        } else {
+          // Call the parent callback when user agrees successfully
+          onAgreementSigned?.()
+        }
+      } catch (err) {
+        setError("Failed to save agreement acceptance")
+        setAgreedToTerms(false) // Reset checkbox on error
+      } finally {
+        setLoading(false)
       }
-    } catch (err) {
-      setError("Failed to generate agreement")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSignAgreement = async () => {
-    if (!signature.trim()) {
-      setError("Please provide your digital signature")
-      return
-    }
-
-    try {
-      // Here you would typically save the signature to the database
-      setSigned(true)
-      onAgreementSigned?.()
-    } catch (err) {
-      setError("Failed to sign agreement")
     }
   }
 
@@ -104,7 +110,7 @@ export function RentalAgreement({
           )}
         </div>
         <CardDescription>
-          {!generatedAgreement ? "Generate a custom rental agreement using AI" : "Review and sign the rental agreement"}
+          Review and accept the rental terms and conditions
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -115,78 +121,86 @@ export function RentalAgreement({
           </Alert>
         )}
 
-        {!generatedAgreement ? (
-          <div className="text-center py-8">
-            <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-black mb-2">No Agreement Generated</h3>
-            <p className="text-gray-600 mb-6">
-              Generate a custom rental agreement tailored to this specific rental using DeepSeek AI.
-              The agreement will be legally compliant and include all necessary terms and conditions.
-            </p>
-            <Button onClick={generateAgreement} disabled={loading} className="bg-black text-white hover:bg-gray-800">
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating with DeepSeek AI...
-                </>
-              ) : (
-                <>
-                  <FileText className="w-4 h-4 mr-2" />
-                  Generate Agreement with DeepSeek AI
-                </>
-              )}
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Agreement Content */}
-            <div className="bg-gray-50 p-6 rounded-lg max-h-96 overflow-y-auto">
-              <pre className="whitespace-pre-wrap text-sm text-black font-mono">{generatedAgreement}</pre>
-            </div>
+        {/* Simple Checkbox Agreement Interface */}
+        <div className="space-y-4">
+          <div className="flex items-start space-x-3">
+            <Checkbox
+              id="terms"
+              checked={agreedToTerms}
+              onCheckedChange={handleAgreementAcceptance}
+              disabled={loading}
+              className="mt-1"
+            />
+            <div className="space-y-2">
+              <Label htmlFor="terms" className="text-sm font-medium leading-relaxed">
+                I agree to the rental terms and conditions for this booking.
+              </Label>
 
-            {/* Signature Section */}
-            {!signed && (
-              <>
-                <Separator />
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="signature" className="text-black font-medium">
-                      Digital Signature {isOwner ? "(Owner)" : "(Renter)"}
-                    </Label>
-                    <p className="text-sm text-gray-600 mb-2">
-                      By typing your full name below, you agree to the terms of this rental agreement.
-                    </p>
-                    <Textarea
-                      id="signature"
-                      placeholder="Type your full name as your digital signature"
-                      value={signature}
-                      onChange={(e) => setSignature(e.target.value)}
-                      className="border-gray-300 focus:border-black"
-                    />
+              {/* Agreement Status and View Link */}
+              <div className="text-sm text-gray-600">
+                {!generatedAgreement ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Generating personalized agreement with DeepSeek AI...</span>
                   </div>
-                  <Button
-                    onClick={handleSignAgreement}
-                    disabled={!signature.trim()}
-                    className="w-full bg-black text-white hover:bg-gray-800"
-                  >
-                    <Check className="w-4 h-4 mr-2" />
-                    Sign Agreement
-                  </Button>
-                </div>
-              </>
-            )}
-
-            {signed && (
-              <Alert className="border-green-200 bg-green-50">
-                <Check className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800">
-                  Agreement signed successfully!{" "}
-                  {isOwner ? "Waiting for renter to sign." : "Waiting for owner to sign."}
-                </AlertDescription>
-              </Alert>
-            )}
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <Check className="w-4 h-4 text-green-600" />
+                      <span>Personalized agreement ready</span>
+                    </div>
+                    <Dialog open={showAgreementModal} onOpenChange={setShowAgreementModal}>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="link"
+                          className="p-0 h-auto text-sm underline text-blue-600 hover:text-blue-800"
+                        >
+                          View AI-generated agreement
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-4xl max-h-[80vh]">
+                        <DialogHeader>
+                          <DialogTitle>Rental Agreement</DialogTitle>
+                          <DialogDescription>
+                            AI-generated rental agreement for this booking
+                          </DialogDescription>
+                        </DialogHeader>
+                        <ScrollArea className="h-[60vh] w-full rounded-md border p-4">
+                          <pre className="whitespace-pre-wrap text-sm text-black font-mono">
+                            {generatedAgreement}
+                          </pre>
+                        </ScrollArea>
+                        <div className="flex justify-end space-x-2">
+                          <Button
+                            variant="outline"
+                            onClick={downloadAgreement}
+                            className="border-black hover:bg-black hover:text-white"
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download
+                          </Button>
+                          <Button onClick={() => setShowAgreementModal(false)}>
+                            Close
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        )}
+
+          {/* Success Message */}
+          {agreedToTerms && (
+            <Alert className="border-green-200 bg-green-50">
+              <Check className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800">
+                Terms accepted! You can now proceed to payment.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
       </CardContent>
     </Card>
   )

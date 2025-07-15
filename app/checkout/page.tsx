@@ -231,12 +231,41 @@ export default function CheckoutPage() {
 
 
       setRentalId(rental.id)
+
+      // Auto-generate agreement in background
+      generateAgreementInBackground(rental.id)
+
       setStep(2) // Move to agreement step
     } catch (error) {
       console.error("Rental creation error:", error)
       setError(`Failed to create rental: ${error instanceof Error ? error.message : 'Please try again.'}`)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Function to generate agreement in background
+  const generateAgreementInBackground = async (rentalId: string) => {
+    try {
+      const response = await fetch("/api/generate-agreement", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ rentalId }),
+      })
+
+      const data = await response.json()
+
+      if (data.error) {
+        console.error("Background agreement generation failed:", data.error)
+      } else {
+        setAgreement(data.agreement)
+        console.log("Agreement generated successfully in background")
+      }
+    } catch (err) {
+      console.error("Background agreement generation error:", err)
+      // Don't show error to user since this is background operation
     }
   }
 

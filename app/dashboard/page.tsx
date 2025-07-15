@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, DollarSign, Package, Star, MapPin, Clock, Plus, Eye, Edit } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Calendar, DollarSign, Package, Star, MapPin, Clock, Plus, Eye, Edit, RotateCcw, CheckCircle, AlertTriangle } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { formatCurrency } from "@/lib/utils/currency"
@@ -39,6 +40,10 @@ type Rental = {
   total_days: number
   delivery_address: string
   created_at: string
+  return_initiated_at?: string
+  return_confirmed_at?: string
+  actual_return_date?: string
+  late_days?: number
   items?: {
     title: string
     images: string[]
@@ -62,6 +67,7 @@ export default function DashboardPage() {
   })
   const [myItems, setMyItems] = useState<Item[]>([])
   const [myRentals, setMyRentals] = useState<Rental[]>([])
+  const [ownerRentals, setOwnerRentals] = useState<Rental[]>([])
   const [recentTransactions, setRecentTransactions] = useState<any[]>([])
 
   // Fetch dashboard data
@@ -86,8 +92,8 @@ export default function DashboardPage() {
       setUser(user)
       const userId = user.id
 
-      // Fetch both items and rentals in parallel for better performance
-      const [itemsResult, rentalsResult] = await Promise.all([
+      // Fetch items, renter rentals, and owner rentals in parallel for better performance
+      const [itemsResult, rentalsResult, ownerRentalsResult] = await Promise.all([
         supabase
           .from('items')
           .select(`
@@ -105,6 +111,16 @@ export default function DashboardPage() {
             profiles!rentals_owner_id_fkey(full_name)
           `)
           .eq('renter_id', userId)
+          .order('created_at', { ascending: false }),
+
+        supabase
+          .from('rentals')
+          .select(`
+            *,
+            items(title, images),
+            profiles!rentals_renter_id_fkey(full_name)
+          `)
+          .eq('owner_id', userId)
           .order('created_at', { ascending: false })
       ])
 
@@ -131,10 +147,72 @@ export default function DashboardPage() {
         setMyRentals(rentalsResult.data || [])
       }
 
+      // Handle owner rentals result
+      if (ownerRentalsResult.error) {
+        console.error('Error fetching owner rentals:', ownerRentalsResult.error)
+      } else {
+        console.log('Fetched owner rentals:', ownerRentalsResult.data)
+        setOwnerRentals(ownerRentalsResult.data || [])
+
+        // Update stats to include both renter and owner active rentals
+        const renterActiveRentals = (rentalsResult.data || []).filter(r => r.status === 'active').length
+        const ownerActiveRentals = (ownerRentalsResult.data || []).filter(r => r.status === 'active').length
+        const totalActiveRentals = renterActiveRentals + ownerActiveRentals
+
+        setUserStats(prev => ({
+          ...prev,
+          activeRentals: totalActiveRentals
+        }))
+      }
+
       setLoading(false)
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
       setLoading(false)
+    }
+  }
+
+  const handleReturnAction = async (rentalId: string, action: 'initiate' | 'confirm', options?: any) => {
+    try {
+      const supabase = createClient()
+
+      if (action === 'initiate') {
+        const response = await fetch('/api/initiate-return', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rentalId })
+        })
+
+        const data = await response.json()
+        if (data.success) {
+          // Refresh dashboard data
+          fetchDashboardData()
+        } else {
+          console.error('Failed to initiate return:', data.error)
+        }
+      } else if (action === 'confirm') {
+        const response = await fetch('/api/confirm-return', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rentalId,
+            damageReported: options?.damageReported || false,
+            damageDescription: options?.damageDescription || '',
+            securityDepositDeduction: options?.securityDepositDeduction || 0,
+            securityDepositReason: options?.securityDepositReason || ''
+          })
+        })
+
+        const data = await response.json()
+        if (data.success) {
+          // Refresh dashboard data
+          fetchDashboardData()
+        } else {
+          console.error('Failed to confirm return:', data.error)
+        }
+      }
+    } catch (error) {
+      console.error('Return action error:', error)
     }
   }
 
@@ -238,7 +316,7 @@ export default function DashboardPage() {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-white border-2">
+          <TabsList className="grid w-full grid-cols-6 bg-white border-2">
             <TabsTrigger value="overview" className="data-[state=active]:bg-black data-[state=active]:text-white">
               Overview
             </TabsTrigger>
@@ -247,6 +325,9 @@ export default function DashboardPage() {
             </TabsTrigger>
             <TabsTrigger value="my-rentals" className="data-[state=active]:bg-black data-[state=active]:text-white">
               My Rentals
+            </TabsTrigger>
+            <TabsTrigger value="items-being-rented" className="data-[state=active]:bg-black data-[state=active]:text-white">
+              Items Being Rented
             </TabsTrigger>
             <TabsTrigger value="messages" className="data-[state=active]:bg-black data-[state=active]:text-white">
               Messages
@@ -485,6 +566,85 @@ export default function DashboardPage() {
                           <div className="mt-2 text-sm text-gray-600">
                             <span>Total: {formatCurrency(rental.total_amount)} ({rental.total_days} days)</span>
                           </div>
+
+                          {/* Return Process Actions */}
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <ReturnActions rental={rental} onReturnAction={handleReturnAction} />
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="items-being-rented" className="space-y-6">
+            <h2 className="text-2xl font-bold text-black">Items Being Rented</h2>
+
+            <div className="space-y-4">
+              {ownerRentals.length === 0 ? (
+                <div className="text-center py-12">
+                  <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No items being rented</h3>
+                  <p className="text-gray-600 mb-4">List items to start earning from rentals!</p>
+                  <Button asChild variant="outline" className="border-black hover:bg-black hover:text-white">
+                    <Link href="/list-item">
+                      <Plus className="w-4 h-4 mr-2" />
+                      List an Item
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                ownerRentals.map((rental) => (
+                  <Card key={rental.id} className="border-2 hover:border-black transition-colors">
+                    <CardContent className="p-6">
+                      <div className="flex items-center space-x-4">
+                        <Image
+                          src={rental.items?.images?.[0] || "/placeholder.svg"}
+                          alt={rental.items?.title || "Rental item"}
+                          width={100}
+                          height={100}
+                          className="w-20 h-20 object-cover rounded-lg"
+                        />
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h3 className="text-lg font-bold text-black">{rental.items?.title || "Unknown Item"}</h3>
+                              <p className="text-gray-600">Renter: {rental.profiles?.full_name || "Unknown"}</p>
+                              <div className="flex items-center text-sm text-gray-600 mt-1">
+                                <MapPin className="w-4 h-4 mr-1" />
+                                {rental.delivery_address || "Pickup location"}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <Badge
+                                className={
+                                  rental.status === "active"
+                                    ? "bg-blue-500 hover:bg-blue-600"
+                                    : rental.status === "completed"
+                                    ? "bg-green-500 hover:bg-green-600"
+                                    : "bg-yellow-500 hover:bg-yellow-600"
+                                }
+                              >
+                                {rental.status.charAt(0).toUpperCase() + rental.status.slice(1)}
+                              </Badge>
+                              <p className="text-lg font-bold text-black mt-1">{formatCurrency(rental.price_per_day)}/day</p>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center text-sm text-gray-600">
+                            <span>From: {rental.start_date}</span>
+                            <span>Until: {rental.end_date}</span>
+                          </div>
+                          <div className="mt-2 text-sm text-gray-600">
+                            <span>Total: {formatCurrency(rental.total_amount)} ({rental.total_days} days)</span>
+                          </div>
+
+                          {/* Owner Return Process Actions */}
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <OwnerReturnActions rental={rental} onReturnAction={handleReturnAction} />
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -512,6 +672,184 @@ export default function DashboardPage() {
           </TabsContent>
         </Tabs>
       </div>
+    </div>
+  )
+}
+
+// Owner Return Actions Component
+function OwnerReturnActions({ rental, onReturnAction }: {
+  rental: Rental,
+  onReturnAction: (rentalId: string, action: 'initiate' | 'confirm', options?: any) => void
+}) {
+  const today = new Date().toISOString().split('T')[0]
+  const endDate = new Date(rental.end_date)
+  const todayDate = new Date(today)
+  const isOverdue = todayDate > endDate
+  const lateDays = isOverdue ? Math.floor((todayDate.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24)) : 0
+
+  // Check return status
+  const returnInitiated = rental.return_initiated_at
+  const returnConfirmed = rental.return_confirmed_at
+  const isActive = rental.status === 'active'
+  const isCompleted = rental.status === 'completed'
+
+  if (isCompleted) {
+    return (
+      <div className="flex items-center space-x-2 text-green-600">
+        <CheckCircle className="w-4 h-4" />
+        <span className="text-sm font-medium">Rental Completed</span>
+        {rental.actual_return_date && (
+          <span className="text-xs text-gray-500">
+            Returned on {rental.actual_return_date}
+          </span>
+        )}
+      </div>
+    )
+  }
+
+  if (!isActive) {
+    return null // Don't show return actions for non-active rentals
+  }
+
+  if (returnInitiated && !returnConfirmed) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center space-x-2 text-orange-600 mb-2">
+          <AlertTriangle className="w-4 h-4" />
+          <span className="text-sm font-medium">Return Confirmation Required</span>
+        </div>
+        <p className="text-xs text-gray-600 mb-3">
+          The renter has initiated the return process. Please confirm when you receive the item.
+        </p>
+
+        <Button
+          size="sm"
+          onClick={() => onReturnAction(rental.id, 'confirm')}
+          className="bg-green-600 hover:bg-green-700 text-white"
+        >
+          <CheckCircle className="w-4 h-4 mr-2" />
+          Confirm Item Received
+        </Button>
+
+        {isOverdue && lateDays > 0 && (
+          <div className="flex items-center space-x-1 text-red-600 mt-2">
+            <AlertTriangle className="w-3 h-3" />
+            <span className="text-xs">Item was {lateDays} day{lateDays > 1 ? 's' : ''} late</span>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Show status for active rentals where return hasn't been initiated
+  return (
+    <div className="space-y-2">
+      {isOverdue ? (
+        <div className="flex items-center space-x-1 text-red-600 mb-2">
+          <AlertTriangle className="w-4 h-4" />
+          <span className="text-sm font-medium">
+            Overdue by {lateDays} day{lateDays > 1 ? 's' : ''}
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center space-x-1 text-blue-600">
+          <Clock className="w-4 h-4" />
+          <span className="text-sm font-medium">Active Rental</span>
+        </div>
+      )}
+
+      <p className="text-xs text-gray-600">
+        {isOverdue
+          ? 'Waiting for renter to initiate return process'
+          : `Due back on ${rental.end_date}`
+        }
+      </p>
+    </div>
+  )
+}
+
+// Return Actions Component (for renters)
+function ReturnActions({ rental, onReturnAction }: {
+  rental: Rental,
+  onReturnAction: (rentalId: string, action: 'initiate' | 'confirm', options?: any) => void
+}) {
+  const today = new Date().toISOString().split('T')[0]
+  const endDate = new Date(rental.end_date)
+  const todayDate = new Date(today)
+  const isOverdue = todayDate > endDate
+  const lateDays = isOverdue ? Math.floor((todayDate.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24)) : 0
+
+  // Check return status
+  const returnInitiated = rental.return_initiated_at
+  const returnConfirmed = rental.return_confirmed_at
+  const isActive = rental.status === 'active'
+  const isCompleted = rental.status === 'completed'
+
+  if (isCompleted) {
+    return (
+      <div className="flex items-center space-x-2 text-green-600">
+        <CheckCircle className="w-4 h-4" />
+        <span className="text-sm font-medium">Rental Completed</span>
+        {rental.actual_return_date && (
+          <span className="text-xs text-gray-500">
+            Returned on {rental.actual_return_date}
+          </span>
+        )}
+      </div>
+    )
+  }
+
+  if (!isActive) {
+    return null // Don't show return actions for non-active rentals
+  }
+
+  if (returnInitiated && !returnConfirmed) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center space-x-2 text-blue-600">
+          <Clock className="w-4 h-4" />
+          <span className="text-sm font-medium">Return Initiated</span>
+        </div>
+        <p className="text-xs text-gray-600">
+          Waiting for owner to confirm item return
+        </p>
+        {isOverdue && lateDays > 0 && (
+          <div className="flex items-center space-x-1 text-orange-600">
+            <AlertTriangle className="w-3 h-3" />
+            <span className="text-xs">Late by {lateDays} day{lateDays > 1 ? 's' : ''}</span>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Show initiate return button for active rentals
+  return (
+    <div className="space-y-2">
+      {isOverdue && (
+        <div className="flex items-center space-x-1 text-red-600 mb-2">
+          <AlertTriangle className="w-4 h-4" />
+          <span className="text-sm font-medium">
+            Overdue by {lateDays} day{lateDays > 1 ? 's' : ''}
+          </span>
+        </div>
+      )}
+
+      <Button
+        size="sm"
+        onClick={() => onReturnAction(rental.id, 'initiate')}
+        className="bg-blue-600 hover:bg-blue-700 text-white"
+      >
+        <RotateCcw className="w-4 h-4 mr-2" />
+        {isOverdue ? 'Return Now (Late)' : 'Initiate Return'}
+      </Button>
+
+      <p className="text-xs text-gray-600">
+        {isOverdue
+          ? 'Return this item as soon as possible to avoid additional late fees'
+          : `Return by ${rental.end_date}`
+        }
+      </p>
     </div>
   )
 }

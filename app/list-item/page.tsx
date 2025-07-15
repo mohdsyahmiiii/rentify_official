@@ -28,21 +28,29 @@ export default function ListItemPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const [user, setUser] = useState<any>(null)
+  const [authLoading, setAuthLoading] = useState(true)
   const router = useRouter()
 
-  // Test Supabase connection on page load
+  // Check authentication on page load
   useEffect(() => {
-    const testSupabase = async () => {
+    const checkAuth = async () => {
       try {
-        console.log("Testing Supabase connection...")
         const supabase = createClient()
-        const { data, error } = await supabase.from('categories').select('count').limit(1)
-        console.log("Supabase test result:", data, error)
+        const { data: { user }, error } = await supabase.auth.getUser()
+
+        if (error) {
+          console.error("Auth error:", error)
+        }
+
+        setUser(user)
+        setAuthLoading(false)
       } catch (err) {
-        console.error("Supabase test error:", err)
+        console.error("Auth check error:", err)
+        setAuthLoading(false)
       }
     }
-    testSupabase()
+    checkAuth()
   }, [])
 
   const [formData, setFormData] = useState({
@@ -198,6 +206,93 @@ export default function ListItemPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show authentication gate if user is not logged in
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-8">
+          {/* Header */}
+          <div className="mb-8">
+            <Button asChild variant="ghost" className="mb-4 hover:bg-gray-100">
+              <Link href="/">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Home
+              </Link>
+            </Button>
+            <h1 className="text-3xl font-bold text-black">List a New Item</h1>
+            <p className="text-gray-600">Share your items with the community and earn money</p>
+          </div>
+
+          {/* Authentication Gate */}
+          <div className="max-w-2xl mx-auto">
+            <Card className="border-2 border-blue-200 bg-blue-50">
+              <CardHeader className="text-center">
+                <CardTitle className="text-2xl text-blue-900">Sign In Required</CardTitle>
+                <CardDescription className="text-blue-700">
+                  You need to be logged in to list items on Rentify
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Preview of what they'll get */}
+                <div className="bg-white p-4 rounded-lg border border-blue-200">
+                  <h3 className="font-semibold text-black mb-3">What you can do after signing in:</h3>
+                  <ul className="space-y-2 text-gray-700">
+                    <li className="flex items-center">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                      List unlimited items for rent
+                    </li>
+                    <li className="flex items-center">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                      Upload multiple photos and descriptions
+                    </li>
+                    <li className="flex items-center">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                      Set your own pricing and rental terms
+                    </li>
+                    <li className="flex items-center">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                      Manage bookings through your dashboard
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button asChild className="flex-1 bg-black text-white hover:bg-gray-800">
+                    <Link href="/auth/login">
+                      Sign In to Continue
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" className="flex-1 border-black hover:bg-black hover:text-white">
+                    <Link href="/auth/signup">
+                      Create New Account
+                    </Link>
+                  </Button>
+                </div>
+
+                <p className="text-center text-sm text-blue-600">
+                  Already have an account? <Link href="/auth/login" className="underline hover:text-blue-800">Sign in here</Link>
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

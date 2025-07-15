@@ -515,13 +515,39 @@ export default function CheckoutPage() {
                 </Card>
 
                 <div className="flex justify-end">
-                  <Button
-                    onClick={handleCreateRental}
-                    className="bg-black text-white hover:bg-gray-800"
-                    disabled={!startDate || !endDate || loading}
-                  >
-                    {loading ? "Creating..." : "Continue to Agreement"}
-                  </Button>
+                  {!user ? (
+                    <div className="space-y-3">
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <span className="text-blue-800 font-medium">Sign In Required</span>
+                        </div>
+                        <p className="text-blue-700 text-sm">
+                          Please sign in to continue with your rental booking
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button asChild className="flex-1 bg-black text-white hover:bg-gray-800">
+                          <Link href={`/auth/login?next=${encodeURIComponent(`/checkout?item_id=${itemId}`)}`}>
+                            Sign In to Continue
+                          </Link>
+                        </Button>
+                        <Button asChild variant="outline" className="flex-1 border-black hover:bg-black hover:text-white">
+                          <Link href={`/auth/signup?next=${encodeURIComponent(`/checkout?item_id=${itemId}`)}`}>
+                            Create Account
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={handleCreateRental}
+                      className="bg-black text-white hover:bg-gray-800"
+                      disabled={!startDate || !endDate || loading}
+                    >
+                      {loading ? "Creating..." : "Continue to Agreement"}
+                    </Button>
+                  )}
                 </div>
               </>
             )}

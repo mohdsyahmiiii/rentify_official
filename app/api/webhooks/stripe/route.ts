@@ -29,15 +29,24 @@ export async function POST(request: NextRequest) {
         const rentalId = session.metadata?.rental_id
 
         if (rentalId) {
-          // Update rental status to active
-          await supabase
+          console.log(`🔍 WEBHOOK DEBUG: Processing rental ${rentalId}`)
+
+          // Update rental status to pending_pickup (waiting for renter to confirm receipt)
+          const { data: updateResult, error: updateError } = await supabase
             .from("rentals")
             .update({
-              status: "active",
+              status: "pending_pickup",
               payment_status: "paid",
               updated_at: new Date().toISOString(),
             })
             .eq("id", rentalId)
+            .select()
+
+          if (updateError) {
+            console.error(`❌ WEBHOOK ERROR: Failed to update rental ${rentalId}:`, updateError)
+          } else {
+            console.log(`✅ WEBHOOK SUCCESS: Updated rental ${rentalId} to pending_pickup:`, updateResult)
+          }
 
           // Get rental details for notifications
           const { data: rental } = await supabase
@@ -57,7 +66,7 @@ export async function POST(request: NextRequest) {
             await supabase.from("notifications").insert({
               user_id: rental.owner_id,
               title: "New Rental Booking",
-              message: `Your item "${rental.items.title}" has been booked!`,
+              message: `Your item "${rental.items.title}" has been booked! Please arrange pickup with the renter.`,
               type: "rental_confirmed",
               related_id: rentalId,
             })
@@ -71,8 +80,8 @@ export async function POST(request: NextRequest) {
               rentalId,
               userId: rental.renter_id,
               itemTitle: rental.items.title,
-              message: `🎉 *Booking Confirmed!*\n\nYour rental of *${rental.items.title}* has been confirmed!\n\n📅 Rental Period: ${rental.start_date} to ${rental.end_date}\n\nThe owner will contact you soon to arrange pickup details.`,
-              actionUrl: `${process.env.NEXT_PUBLIC_APP_URL}/rental/${rentalId}`,
+              message: `🎉 *Booking Confirmed!*\n\nYour rental of *${rental.items.title}* has been confirmed!\n\n📅 Rental Period: ${rental.start_date} to ${rental.end_date}\n\n📋 *Next Step:* Arrange pickup with the owner, then confirm receipt in your dashboard to start the rental.`,
+              actionUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
             })
 
             // Notify owner
@@ -81,8 +90,8 @@ export async function POST(request: NextRequest) {
               rentalId,
               userId: rental.owner_id,
               itemTitle: rental.items.title,
-              message: `💰 *New Booking Received!*\n\nYour *${rental.items.title}* has been booked!\n\n📅 Rental Period: ${rental.start_date} to ${rental.end_date}\n\nPlease contact the renter to arrange pickup details.`,
-              actionUrl: `${process.env.NEXT_PUBLIC_APP_URL}/rental/${rentalId}`,
+              message: `💰 *New Booking Received!*\n\nYour *${rental.items.title}* has been booked!\n\n📅 Rental Period: ${rental.start_date} to ${rental.end_date}\n\n📋 *Next Step:* Contact the renter to arrange pickup. The rental will become active once they confirm receipt.`,
+              actionUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
             })
           }
         }

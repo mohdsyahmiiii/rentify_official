@@ -45,6 +45,9 @@ type Rental = {
   return_confirmed_at?: string
   actual_return_date?: string
   late_days?: number
+  pickup_confirmed_at?: string
+  pickup_confirmed_by?: string
+  pickup_notes?: string
   items?: {
     title: string
     images: string[]
@@ -215,7 +218,7 @@ export default function DashboardPage() {
     }
   }
 
-  const handleReturnAction = async (rentalId: string, action: 'initiate' | 'confirm', options?: any) => {
+  const handleReturnAction = async (rentalId: string, action: 'initiate' | 'confirm' | 'confirm_pickup', options?: any) => {
     try {
       const supabase = createClient()
 
@@ -252,6 +255,23 @@ export default function DashboardPage() {
           fetchDashboardData()
         } else {
           console.error('Failed to confirm return:', data.error)
+        }
+      } else if (action === 'confirm_pickup') {
+        const response = await fetch('/api/confirm-pickup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rentalId,
+            pickupNotes: options?.pickupNotes || ''
+          })
+        })
+
+        const data = await response.json()
+        if (data.success) {
+          // Refresh dashboard data
+          fetchDashboardData()
+        } else {
+          console.error('Failed to confirm pickup:', data.error)
         }
       }
     } catch (error) {
@@ -572,10 +592,12 @@ export default function DashboardPage() {
                                     ? "bg-blue-500 hover:bg-blue-600"
                                     : rental.status === "completed"
                                     ? "bg-green-500 hover:bg-green-600"
+                                    : rental.status === "pending_pickup"
+                                    ? "bg-orange-500 hover:bg-orange-600"
                                     : "bg-yellow-500 hover:bg-yellow-600"
                                 }
                               >
-                                {rental.status.charAt(0).toUpperCase() + rental.status.slice(1)}
+                                {rental.status === "pending_pickup" ? "Pending Pickup" : rental.status.charAt(0).toUpperCase() + rental.status.slice(1)}
                               </Badge>
                               <p className="text-lg font-bold text-black mt-1">{formatCurrency(rental.price_per_day)}/day</p>
                             </div>
@@ -653,10 +675,12 @@ export default function DashboardPage() {
                                     ? "bg-blue-500 hover:bg-blue-600"
                                     : rental.status === "completed"
                                     ? "bg-green-500 hover:bg-green-600"
+                                    : rental.status === "pending_pickup"
+                                    ? "bg-orange-500 hover:bg-orange-600"
                                     : "bg-yellow-500 hover:bg-yellow-600"
                                 }
                               >
-                                {rental.status.charAt(0).toUpperCase() + rental.status.slice(1)}
+                                {rental.status === "pending_pickup" ? "Pending Pickup" : rental.status.charAt(0).toUpperCase() + rental.status.slice(1)}
                               </Badge>
                               <p className="text-lg font-bold text-black mt-1">{formatCurrency(rental.price_per_day)}/day</p>
                             </div>
@@ -714,7 +738,7 @@ export default function DashboardPage() {
 // Owner Return Actions Component
 function OwnerReturnActions({ rental, onReturnAction, reviewedRentals, onReviewSubmitted }: {
   rental: Rental,
-  onReturnAction: (rentalId: string, action: 'initiate' | 'confirm', options?: any) => void,
+  onReturnAction: (rentalId: string, action: 'initiate' | 'confirm' | 'confirm_pickup', options?: any) => void,
   reviewedRentals: Set<string>,
   onReviewSubmitted: (rentalId: string) => void
 }) {
@@ -729,6 +753,22 @@ function OwnerReturnActions({ rental, onReturnAction, reviewedRentals, onReviewS
   const returnConfirmed = rental.return_confirmed_at
   const isActive = rental.status === 'active'
   const isCompleted = rental.status === 'completed'
+  const isPendingPickup = rental.status === 'pending_pickup'
+
+  // Handle pending pickup status - show waiting message for owners
+  if (isPendingPickup) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center space-x-2 text-orange-600 mb-2">
+          <Clock className="w-4 h-4" />
+          <span className="text-sm font-medium">Waiting for Renter Pickup</span>
+        </div>
+        <p className="text-xs text-gray-600">
+          The renter has paid and will confirm when they receive the item. The rental will become active once they confirm pickup.
+        </p>
+      </div>
+    )
+  }
 
   if (isCompleted) {
     const hasReviewed = reviewedRentals.has(rental.id)
@@ -765,8 +805,8 @@ function OwnerReturnActions({ rental, onReturnAction, reviewedRentals, onReviewS
     )
   }
 
-  if (!isActive) {
-    return null // Don't show return actions for non-active rentals
+  if (!isActive && !isPendingPickup) {
+    return null // Don't show return actions for non-active/non-pending-pickup rentals
   }
 
   if (returnInitiated && !returnConfirmed) {
@@ -829,7 +869,7 @@ function OwnerReturnActions({ rental, onReturnAction, reviewedRentals, onReviewS
 // Return Actions Component (for renters)
 function ReturnActions({ rental, onReturnAction, reviewedRentals, onReviewSubmitted }: {
   rental: Rental,
-  onReturnAction: (rentalId: string, action: 'initiate' | 'confirm', options?: any) => void,
+  onReturnAction: (rentalId: string, action: 'initiate' | 'confirm' | 'confirm_pickup', options?: any) => void,
   reviewedRentals: Set<string>,
   onReviewSubmitted: (rentalId: string) => void
 }) {
@@ -844,6 +884,35 @@ function ReturnActions({ rental, onReturnAction, reviewedRentals, onReviewSubmit
   const returnConfirmed = rental.return_confirmed_at
   const isActive = rental.status === 'active'
   const isCompleted = rental.status === 'completed'
+  const isPendingPickup = rental.status === 'pending_pickup'
+
+  // Handle pending pickup status - show pickup confirmation button
+  if (isPendingPickup) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center space-x-2 text-orange-600 mb-2">
+          <Clock className="w-4 h-4" />
+          <span className="text-sm font-medium">Waiting for Item Pickup</span>
+        </div>
+        <p className="text-xs text-gray-600 mb-3">
+          Please confirm when you have received the item to start your rental period.
+        </p>
+
+        <Button
+          size="sm"
+          onClick={() => onReturnAction(rental.id, 'confirm_pickup')}
+          className="bg-green-600 hover:bg-green-700 text-white"
+        >
+          <CheckCircle className="w-4 h-4 mr-2" />
+          Confirm Item Received
+        </Button>
+
+        <p className="text-xs text-gray-600">
+          Your rental period will officially start once you confirm receipt.
+        </p>
+      </div>
+    )
+  }
 
   if (isCompleted) {
     return (
@@ -859,8 +928,8 @@ function ReturnActions({ rental, onReturnAction, reviewedRentals, onReviewSubmit
     )
   }
 
-  if (!isActive) {
-    return null // Don't show return actions for non-active rentals
+  if (!isActive && !isPendingPickup) {
+    return null // Don't show return actions for non-active/non-pending-pickup rentals
   }
 
   if (returnInitiated && !returnConfirmed) {

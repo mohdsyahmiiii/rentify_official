@@ -45,7 +45,7 @@ export default function CheckoutPage() {
   const [startDate, setStartDate] = useState<Date>()
   const [endDate, setEndDate] = useState<Date>()
   const [rentalDays, setRentalDays] = useState(1)
-  const [deliveryMethod, setDeliveryMethod] = useState("pickup")
+  const [deliveryMethod] = useState("pickup") // Fixed to pickup only (meet-up)
   const [paymentMethod, setPaymentMethod] = useState("card")
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [step, setStep] = useState(1)
@@ -134,13 +134,13 @@ export default function CheckoutPage() {
   }
 
   const calculateTotal = () => {
-    // Calculate rental costs based on item data
+    // Calculate rental costs based on item data (meet-up only, no delivery)
     if (!itemData) return { subtotal: 0, serviceFee: 0, insurance: 0, deliveryFee: 0, total: 0 }
 
     const subtotal = itemData.price * rentalDays
     const serviceFee = subtotal * 0.1
     const insurance = subtotal * 0.05
-    const deliveryFee = deliveryMethod === "delivery" ? 25 : 0
+    const deliveryFee = 0 // Always 0 for meet-up only
     return {
       subtotal,
       serviceFee,
@@ -457,41 +457,28 @@ export default function CheckoutPage() {
                       </Select>
                     </div>
 
-                    {/* Delivery Method */}
+                    {/* Meet-up Information */}
                     <div className="space-y-3">
-                      <Label className="text-black font-medium">Delivery Method</Label>
-                      <div className="space-y-3">
+                      <Label className="text-black font-medium">Meet-up Arrangement</Label>
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                         <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="pickup"
-                            checked={deliveryMethod === "pickup"}
-                            onCheckedChange={() => setDeliveryMethod("pickup")}
-                          />
-                          <Label htmlFor="pickup" className="text-black">
-                            Pickup (Free) - Meet at owner's location
-                          </Label>
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <span className="text-blue-800 font-medium">Meet-up Only</span>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="delivery"
-                            checked={deliveryMethod === "delivery"}
-                            onCheckedChange={() => setDeliveryMethod("delivery")}
-                          />
-                          <Label htmlFor="delivery" className="text-black">
-                            Delivery (+RM25) - Item delivered to your address
-                          </Label>
-                        </div>
+                        <p className="text-blue-700 text-sm mt-2">
+                          You'll arrange a convenient meet-up location with the owner to collect and return the item. No delivery fees apply.
+                        </p>
                       </div>
                     </div>
 
-                    {/* Special Instructions */}
+                    {/* Meet-up Instructions */}
                     <div className="space-y-2">
                       <Label htmlFor="instructions" className="text-black font-medium">
-                        Special Instructions (Optional)
+                        Meet-up Preferences & Instructions (Optional)
                       </Label>
                       <Textarea
                         id="instructions"
-                        placeholder="Any special requests or instructions for the owner..."
+                        placeholder="Preferred meet-up times, locations, or any special instructions for the rental..."
                         className="border-gray-300 focus:border-black"
                         value={specialInstructions}
                         onChange={(e) => setSpecialInstructions(e.target.value)}
@@ -645,8 +632,8 @@ export default function CheckoutPage() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-black">Delivery:</span>
-                    <span className="text-black font-medium capitalize">{deliveryMethod}</span>
+                    <span className="text-black">Collection:</span>
+                    <span className="text-black font-medium">Meet-up</span>
                   </div>
                 </div>
 

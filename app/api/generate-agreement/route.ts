@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     // Generate custom agreement using DeepSeek AI
     const { text: agreement } = await generateText({
       model: deepseek("deepseek-chat"),
-      system: `You are a legal document generator specializing in rental agreements for Malaysia. Generate a comprehensive, legally sound rental agreement that complies with Malaysian law and is fair to both parties. Use Malaysian Ringgit (RM) currency format and include all necessary clauses for protection and clarity. Make the language professional yet easy to understand.`,
+      system: `You are a legal document generator specializing in rental agreements for Malaysia. Generate a comprehensive, legally sound rental agreement that complies with Malaysian law and is fair to both parties. Use Malaysian Ringgit (RM) currency format and include all necessary clauses for protection and clarity. Make the language professional yet easy to understand. IMPORTANT: This rental platform operates on a MEET-UP ONLY basis - there is no delivery service, all item collection and return must be arranged through direct meet-up between the parties.`,
       prompt: `Generate a detailed rental agreement for the following rental:
 
 ITEM DETAILS:
@@ -94,9 +94,9 @@ POLICIES:
 - Damage Policy: ${itemData.damage_policy || "Renter is responsible for any damage beyond normal wear and tear"}
 - Late Fee: RM${itemData.late_fee_per_day || 10} per day for late returns
 
-DELIVERY:
-- Method: ${rental.delivery_method}
-- Address: ${rental.delivery_address || "Pickup at owner location"}
+MEET-UP ARRANGEMENT:
+- Collection Method: Meet-up with owner (no delivery service)
+- Meet-up Location: To be arranged between parties
 - Special Instructions: ${rental.special_instructions || "None"}
 
 Please generate a comprehensive rental agreement that includes:
@@ -104,7 +104,7 @@ Please generate a comprehensive rental agreement that includes:
 2. Item description and condition assessment
 3. Rental period and payment terms (in Malaysian Ringgit)
 4. Security deposit terms and refund conditions
-5. Delivery/pickup arrangements and responsibilities
+5. Meet-up arrangements and collection/return responsibilities
 6. Care and maintenance responsibilities
 7. Damage and liability clauses
 8. Cancellation and return policies

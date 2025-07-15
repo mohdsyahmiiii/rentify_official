@@ -19,12 +19,18 @@ const ChatModalContext = createContext<ChatModalContextType | undefined>(undefin
 export function ChatModalProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false)
   const [modalKey, setModalKey] = useState(0)
+  const [isMounted, setIsMounted] = useState(false)
   const [conversation, setConversation] = useState<{
     recipientId: string
     recipientName: string
     itemId: string
     itemTitle: string
   } | null>(null)
+
+  // Ensure modal only renders on client-side after hydration
+  React.useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const openChat = (newConversation: {
     recipientId: string
@@ -49,8 +55,8 @@ export function ChatModalProvider({ children }: { children: React.ReactNode }) {
   return (
     <ChatModalContext.Provider value={{ openChat, closeChat, isOpen }}>
       {children}
-      {/* Global Chat Modal */}
-      {conversation && isOpen && (
+      {/* Global Chat Modal - Only render on client-side after hydration */}
+      {isMounted && conversation && isOpen && (
         <ChatModal
           key={modalKey}
           isOpen={isOpen}

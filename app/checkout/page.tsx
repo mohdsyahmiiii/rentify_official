@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
 import { Checkbox } from "@/components/ui/checkbox"
 import { CalendarIcon, Shield, MapPin, Star, ArrowLeft, CheckCircle } from "lucide-react"
 import Image from "next/image"
@@ -132,6 +132,22 @@ export default function CheckoutPage() {
       setItemLoading(false)
     }
   }
+
+  // Auto-calculate rental duration when dates change
+  useEffect(() => {
+    if (startDate && endDate) {
+      const timeDiff = endDate.getTime() - startDate.getTime()
+      const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24))
+
+      if (daysDiff > 0) {
+        setRentalDays(daysDiff)
+      } else {
+        // If end date is before start date, reset end date
+        setEndDate(undefined)
+        setRentalDays(1)
+      }
+    }
+  }, [startDate, endDate])
 
   const calculateTotal = () => {
     // Calculate rental costs based on item data (meet-up only, no delivery)
@@ -410,7 +426,13 @@ export default function CheckoutPage() {
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0">
-                            <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                            <Calendar
+                              mode="single"
+                              selected={startDate}
+                              onSelect={setStartDate}
+                              initialFocus
+                              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                            />
                           </PopoverContent>
                         </Popover>
                       </div>
@@ -429,32 +451,37 @@ export default function CheckoutPage() {
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0">
-                            <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+                            <Calendar
+                              mode="single"
+                              selected={endDate}
+                              onSelect={setEndDate}
+                              initialFocus
+                              disabled={(date) => {
+                                const today = new Date(new Date().setHours(0, 0, 0, 0))
+                                const minDate = startDate ? new Date(startDate.getTime() + 24 * 60 * 60 * 1000) : today
+                                return date < minDate
+                              }}
+                            />
                           </PopoverContent>
                         </Popover>
                       </div>
                     </div>
 
-                    {/* Rental Duration */}
+                    {/* Rental Duration - Auto-calculated */}
                     <div className="space-y-2">
-                      <Label htmlFor="duration" className="text-black font-medium">
+                      <Label className="text-black font-medium">
                         Rental Duration
                       </Label>
-                      <Select
-                        value={rentalDays.toString()}
-                        onValueChange={(value) => setRentalDays(Number.parseInt(value))}
-                      >
-                        <SelectTrigger className="border-gray-300 focus:border-black">
-                          <SelectValue placeholder="Select duration" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4, 5, 6, 7, 14, 30].map((days) => (
-                            <SelectItem key={days} value={days.toString()}>
-                              {days} {days === 1 ? "day" : "days"}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <span className="text-black font-medium">
+                            {rentalDays} {rentalDays === 1 ? "day" : "days"}
+                          </span>
+                          <span className="text-sm text-gray-600">
+                            {startDate && endDate ? "Auto-calculated" : "Select dates above"}
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Meet-up Information */}

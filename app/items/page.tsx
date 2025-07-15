@@ -215,13 +215,7 @@ export default function ItemsPage() {
                   <CardDescription className="text-gray-600">{item.description}</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="flex items-center">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm font-medium text-black ml-1">{item.rating}</span>
-                    </div>
-                    <span className="text-sm text-gray-600">({item.reviews})</span>
-                  </div>
+
                   <div className="flex items-center text-sm text-gray-600 mb-4">
                     <MapPin className="w-4 h-4 mr-1" />
                     {item.location}
@@ -266,16 +260,9 @@ export default function ItemsPage() {
                         <div className="text-sm text-gray-600">/day</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="flex items-center">
-                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                        <span className="text-sm font-medium text-black ml-1">{item.rating}</span>
-                        <span className="text-sm text-gray-600 ml-1">({item.reviews})</span>
-                      </div>
-                      <div className="flex items-center text-sm text-gray-600">
-                        <MapPin className="w-4 h-4 mr-1" />
-                        {item.location}
-                      </div>
+                    <div className="flex items-center text-sm text-gray-600 mb-4">
+                      <MapPin className="w-4 h-4 mr-1" />
+                      {item.location}
                     </div>
                     <Button asChild className="bg-black text-white hover:bg-gray-800" disabled={!item.available}>
                       <Link href={`/items/${item.id}`}>{item.available ? "Rent Now" : "View Details"}</Link>

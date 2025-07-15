@@ -6,12 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Calendar, DollarSign, Package, Star, MapPin, Clock, Plus, Eye, Edit, RotateCcw, CheckCircle, AlertTriangle } from "lucide-react"
+import { Calendar, Package, Star, MapPin, Clock, Plus, Eye, Edit, RotateCcw, CheckCircle, AlertTriangle, MessageSquare } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { formatCurrency } from "@/lib/utils/currency"
 import { createClient } from "@/lib/supabase/client"
 import { MessagesList } from "@/components/messages-list"
+import { ReviewForm } from "@/components/review-form"
 import type { User } from "@supabase/supabase-js"
 
 // Define types for our data
@@ -59,7 +60,6 @@ export default function DashboardPage() {
   const [authError, setAuthError] = useState<string | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [userStats, setUserStats] = useState({
-    totalEarnings: 0,
     activeRentals: 0,
     totalItems: 0,
     rating: 0,
@@ -69,6 +69,7 @@ export default function DashboardPage() {
   const [myRentals, setMyRentals] = useState<Rental[]>([])
   const [ownerRentals, setOwnerRentals] = useState<Rental[]>([])
   const [recentTransactions, setRecentTransactions] = useState<any[]>([])
+  const [reviewedRentals, setReviewedRentals] = useState<Set<string>>(new Set())
 
   // Fetch dashboard data
   useEffect(() => {
@@ -165,10 +166,52 @@ export default function DashboardPage() {
         }))
       }
 
+      // Fetch reviewed rentals and user profile
+      await fetchReviewedRentals(userId)
+      await fetchUserProfile(userId)
+
       setLoading(false)
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
       setLoading(false)
+    }
+  }
+
+  const fetchReviewedRentals = async (userId: string) => {
+    try {
+      const supabase = createClient()
+      const { data: reviews } = await supabase
+        .from('reviews')
+        .select('rental_id')
+        .eq('reviewer_id', userId)
+
+      if (reviews) {
+        const reviewedSet = new Set(reviews.map(review => review.rental_id))
+        setReviewedRentals(reviewedSet)
+      }
+    } catch (error) {
+      console.error('Error fetching reviewed rentals:', error)
+    }
+  }
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const supabase = createClient()
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('rating, total_reviews')
+        .eq('id', userId)
+        .single()
+
+      if (profile) {
+        setUserStats(prev => ({
+          ...prev,
+          rating: profile.rating || 0,
+          reviews: profile.total_reviews || 0
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error)
     }
   }
 
@@ -257,18 +300,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <Card className="border-2 hover:border-black transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Earnings</CardTitle>
-              <DollarSign className="h-4 w-4 text-gray-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-black">{formatCurrency(userStats.totalEarnings)}</div>
-              <p className="text-xs text-green-600">+12% from last month</p>
-            </CardContent>
-          </Card>
-
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <Card className="border-2 hover:border-black transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">Active Rentals</CardTitle>
@@ -299,17 +331,6 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold text-black">{userStats.rating}</div>
               <p className="text-xs text-gray-600">{userStats.reviews} reviews</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 hover:border-black transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">This Month</CardTitle>
-              <Clock className="h-4 w-4 text-gray-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-black">{formatCurrency(320)}</div>
-              <p className="text-xs text-green-600">+8% from last month</p>
             </CardContent>
           </Card>
         </div>
@@ -569,7 +590,14 @@ export default function DashboardPage() {
 
                           {/* Return Process Actions */}
                           <div className="mt-4 pt-4 border-t border-gray-200">
-                            <ReturnActions rental={rental} onReturnAction={handleReturnAction} />
+                            <ReturnActions
+                              rental={rental}
+                              onReturnAction={handleReturnAction}
+                              reviewedRentals={reviewedRentals}
+                              onReviewSubmitted={(rentalId) => {
+                                setReviewedRentals(prev => new Set([...prev, rentalId]))
+                              }}
+                            />
                           </div>
                         </div>
                       </div>
@@ -643,7 +671,14 @@ export default function DashboardPage() {
 
                           {/* Owner Return Process Actions */}
                           <div className="mt-4 pt-4 border-t border-gray-200">
-                            <OwnerReturnActions rental={rental} onReturnAction={handleReturnAction} />
+                            <OwnerReturnActions
+                              rental={rental}
+                              onReturnAction={handleReturnAction}
+                              reviewedRentals={reviewedRentals}
+                              onReviewSubmitted={(rentalId) => {
+                                setReviewedRentals(prev => new Set([...prev, rentalId]))
+                              }}
+                            />
                           </div>
                         </div>
                       </div>
@@ -664,7 +699,7 @@ export default function DashboardPage() {
 
             <Card className="border-2">
               <CardContent className="p-12 text-center">
-                <DollarSign className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <Clock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No transactions yet</h3>
                 <p className="text-gray-600">Your transaction history will appear here once you start renting or earning from your items.</p>
               </CardContent>
@@ -677,9 +712,11 @@ export default function DashboardPage() {
 }
 
 // Owner Return Actions Component
-function OwnerReturnActions({ rental, onReturnAction }: {
+function OwnerReturnActions({ rental, onReturnAction, reviewedRentals, onReviewSubmitted }: {
   rental: Rental,
-  onReturnAction: (rentalId: string, action: 'initiate' | 'confirm', options?: any) => void
+  onReturnAction: (rentalId: string, action: 'initiate' | 'confirm', options?: any) => void,
+  reviewedRentals: Set<string>,
+  onReviewSubmitted: (rentalId: string) => void
 }) {
   const today = new Date().toISOString().split('T')[0]
   const endDate = new Date(rental.end_date)
@@ -694,14 +731,35 @@ function OwnerReturnActions({ rental, onReturnAction }: {
   const isCompleted = rental.status === 'completed'
 
   if (isCompleted) {
+    const hasReviewed = reviewedRentals.has(rental.id)
+
     return (
-      <div className="flex items-center space-x-2 text-green-600">
-        <CheckCircle className="w-4 h-4" />
-        <span className="text-sm font-medium">Rental Completed</span>
-        {rental.actual_return_date && (
-          <span className="text-xs text-gray-500">
-            Returned on {rental.actual_return_date}
-          </span>
+      <div className="space-y-2">
+        <div className="flex items-center space-x-2 text-green-600">
+          <CheckCircle className="w-4 h-4" />
+          <span className="text-sm font-medium">Rental Completed</span>
+          {rental.actual_return_date && (
+            <span className="text-xs text-gray-500">
+              Returned on {rental.actual_return_date}
+            </span>
+          )}
+        </div>
+
+        {!hasReviewed && (
+          <ReviewForm
+            rentalId={rental.id}
+            itemTitle={rental.items?.title || "Item"}
+            revieweeName={rental.profiles?.full_name || "Renter"}
+            isOwner={true}
+            onReviewSubmitted={() => onReviewSubmitted(rental.id)}
+          />
+        )}
+
+        {hasReviewed && (
+          <div className="flex items-center space-x-1 text-gray-600">
+            <MessageSquare className="w-3 h-3" />
+            <span className="text-xs">Review submitted</span>
+          </div>
         )}
       </div>
     )
@@ -769,9 +827,11 @@ function OwnerReturnActions({ rental, onReturnAction }: {
 }
 
 // Return Actions Component (for renters)
-function ReturnActions({ rental, onReturnAction }: {
+function ReturnActions({ rental, onReturnAction, reviewedRentals, onReviewSubmitted }: {
   rental: Rental,
-  onReturnAction: (rentalId: string, action: 'initiate' | 'confirm', options?: any) => void
+  onReturnAction: (rentalId: string, action: 'initiate' | 'confirm', options?: any) => void,
+  reviewedRentals: Set<string>,
+  onReviewSubmitted: (rentalId: string) => void
 }) {
   const today = new Date().toISOString().split('T')[0]
   const endDate = new Date(rental.end_date)
@@ -804,6 +864,8 @@ function ReturnActions({ rental, onReturnAction }: {
   }
 
   if (returnInitiated && !returnConfirmed) {
+    const hasReviewed = reviewedRentals.has(rental.id)
+
     return (
       <div className="space-y-2">
         <div className="flex items-center space-x-2 text-blue-600">
@@ -817,6 +879,24 @@ function ReturnActions({ rental, onReturnAction }: {
           <div className="flex items-center space-x-1 text-orange-600">
             <AlertTriangle className="w-3 h-3" />
             <span className="text-xs">Late by {lateDays} day{lateDays > 1 ? 's' : ''}</span>
+          </div>
+        )}
+
+        {/* Renter can review owner after initiating return */}
+        {!hasReviewed && (
+          <ReviewForm
+            rentalId={rental.id}
+            itemTitle={rental.items?.title || "Item"}
+            revieweeName={rental.profiles?.full_name || "Owner"}
+            isOwner={false}
+            onReviewSubmitted={() => onReviewSubmitted(rental.id)}
+          />
+        )}
+
+        {hasReviewed && (
+          <div className="flex items-center space-x-1 text-gray-600">
+            <MessageSquare className="w-3 h-3" />
+            <span className="text-xs">Review submitted</span>
           </div>
         )}
       </div>

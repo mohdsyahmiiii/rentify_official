@@ -13,6 +13,7 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { formatCurrency } from "@/lib/utils/currency"
 import { ChatModal } from "@/components/chat-modal"
+import { ReviewDisplay } from "@/components/review-display"
 import type { User } from "@supabase/supabase-js"
 
 // Type definitions
@@ -59,13 +60,30 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [ownerId, setOwnerId] = useState<string>("")
+  const [reviewStats, setReviewStats] = useState({
+    averageRating: 0,
+    totalReviews: 0,
+    ratingDistribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+  })
 
   // Unwrap the params Promise
   const resolvedParams = use(params)
 
   useEffect(() => {
     fetchItemData()
+    fetchReviewStats()
   }, [resolvedParams.id])
+
+  // Update itemData when reviewStats change
+  useEffect(() => {
+    if (itemData) {
+      setItemData(prev => prev ? {
+        ...prev,
+        rating: reviewStats.averageRating,
+        reviews: reviewStats.totalReviews,
+      } : null)
+    }
+  }, [reviewStats])
 
   // Get current user
   useEffect(() => {
@@ -109,15 +127,15 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
         category: item.categories?.name || 'Other',
         owner: {
           name: item.profiles?.full_name || 'Unknown',
-          avatar: '/placeholder-user.jpg',
-          rating: 4.8, // Default values for now
-          reviews: 15,
-          joinDate: '2024',
+          avatar: item.profiles?.avatar_url || '/placeholder-user.jpg',
+          rating: item.profiles?.rating || 0,
+          reviews: item.profiles?.total_reviews || 0,
+          joinDate: item.profiles?.created_at ? new Date(item.profiles.created_at).getFullYear().toString() : '2024',
           responseTime: 'within a few hours',
           verified: true,
         },
-        rating: item.rating || 4.5,
-        reviews: item.total_reviews || 0,
+        rating: reviewStats.averageRating,
+        reviews: reviewStats.totalReviews,
         location: item.location,
         images: item.images || ['/placeholder.svg?height=400&width=600'],
         features: item.features || ['High Quality', 'Well Maintained', 'Ready to Use'],
@@ -139,6 +157,19 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
       setError('Failed to load item')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchReviewStats = async () => {
+    try {
+      const response = await fetch(`/api/reviews/stats?item_id=${resolvedParams.id}`)
+      const data = await response.json()
+
+      if (data.success) {
+        setReviewStats(data.stats)
+      }
+    } catch (err) {
+      console.error('Error fetching review stats:', err)
     }
   }
 
@@ -340,18 +371,10 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
+                    <div className="flex items-center space-x-2">
                       <h3 className="text-lg font-semibold text-black">{itemData.owner.name}</h3>
                       {itemData.owner.verified && <Shield className="w-4 h-4 text-green-600" />}
                     </div>
-                    <div className="flex items-center space-x-4 text-sm text-gray-600">
-                      <div className="flex items-center">
-                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 mr-1" />
-                        {itemData.owner.rating} ({itemData.owner.reviews} reviews)
-                      </div>
-                      <span>Joined {itemData.owner.joinDate}</span>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">Typically responds {itemData.owner.responseTime}</p>
                   </div>
                 </div>
               </CardContent>
@@ -430,22 +453,7 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
           </TabsContent>
 
           <TabsContent value="reviews" className="space-y-6">
-            <Card className="border-2">
-              <CardHeader>
-                <CardTitle className="text-black">Reviews ({itemData.reviews})</CardTitle>
-                <CardDescription>
-                  <div className="flex items-center space-x-2">
-                    <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                    <span className="font-medium text-black">{itemData.rating} out of 5</span>
-                  </div>
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="text-center py-8">
-                  <p className="text-gray-600">No reviews yet. Be the first to review this item!</p>
-                </div>
-              </CardContent>
-            </Card>
+            <ReviewDisplay itemId={resolvedParams.id} />
           </TabsContent>
         </Tabs>
       </div>

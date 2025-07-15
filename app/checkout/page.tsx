@@ -45,6 +45,11 @@ export default function CheckoutPage() {
   const [startDate, setStartDate] = useState<Date>()
   const [endDate, setEndDate] = useState<Date>()
   const [rentalDays, setRentalDays] = useState(1)
+  const [availabilityStatus, setAvailabilityStatus] = useState<{
+    checking: boolean
+    available: boolean | null
+    message: string
+  }>({ checking: false, available: null, message: "" })
   const [deliveryMethod] = useState("pickup") // Fixed to pickup only (meet-up)
   const [paymentMethod, setPaymentMethod] = useState("card")
   const [agreedToTerms, setAgreedToTerms] = useState(false)
@@ -168,6 +173,64 @@ export default function CheckoutPage() {
 
   const costs = calculateTotal()
 
+  // Check availability when dates change
+  const checkAvailability = async () => {
+    if (!itemData || !startDate || !endDate) {
+      setAvailabilityStatus({ checking: false, available: null, message: "" })
+      return
+    }
+
+    setAvailabilityStatus({ checking: true, available: null, message: "Checking availability..." })
+
+    try {
+      const response = await fetch('/api/check-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemId: itemData.id,
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0]
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.available) {
+        setAvailabilityStatus({
+          checking: false,
+          available: true,
+          message: "✅ Available for selected dates"
+        })
+      } else {
+        const message = data.conflictDetails ?
+          `❌ Not available. Next available: ${data.nextAvailableDate ? new Date(data.nextAvailableDate).toLocaleDateString() : 'Unknown'}` :
+          `❌ ${data.error || 'Not available for selected dates'}`
+
+        setAvailabilityStatus({
+          checking: false,
+          available: false,
+          message
+        })
+      }
+    } catch (error) {
+      console.error('Error checking availability:', error)
+      setAvailabilityStatus({
+        checking: false,
+        available: false,
+        message: "❌ Error checking availability"
+      })
+    }
+  }
+
+  // Check availability when dates change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      checkAvailability()
+    }, 500) // Debounce for 500ms
+
+    return () => clearTimeout(timeoutId)
+  }, [startDate, endDate, itemData])
+
   const handleCreateRental = async () => {
     if (!itemData) {
       setError("Item data not loaded")
@@ -179,15 +242,38 @@ export default function CheckoutPage() {
       return
     }
 
+    if (!startDate || !endDate) {
+      setError("Please select start and end dates")
+      return
+    }
+
     setLoading(true)
     setError("")
 
     try {
       const supabase = createClient()
 
-      // Create actual rental record
+      // STEP 1: Check availability before creating rental
+      const availabilityResponse = await fetch('/api/check-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemId: itemData.id,
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0]
+        })
+      })
 
-      // First, get the item to get the owner_id
+      const availabilityData = await availabilityResponse.json()
+
+      if (!availabilityResponse.ok || !availabilityData.available) {
+        const conflictMessage = availabilityData.conflictDetails ?
+          `Item is already booked for those dates. Next available: ${availabilityData.nextAvailableDate}` :
+          availabilityData.error || 'Item is not available for the selected dates'
+        throw new Error(conflictMessage)
+      }
+
+      // STEP 2: Get the item to get the owner_id
       const { data: realItem, error: itemError } = await supabase
         .from('items')
         .select('owner_id')
@@ -513,6 +599,35 @@ export default function CheckoutPage() {
                       </div>
                     </div>
 
+                    {/* Availability Status */}
+                    {(availabilityStatus.checking || availabilityStatus.available !== null) && (
+                      <div className="space-y-2">
+                        <Label className="text-black font-medium">Availability Status</Label>
+                        <div className={`p-3 border rounded-lg ${
+                          availabilityStatus.checking
+                            ? 'bg-gray-50 border-gray-200'
+                            : availabilityStatus.available
+                              ? 'bg-green-50 border-green-200'
+                              : 'bg-red-50 border-red-200'
+                        }`}>
+                          <div className="flex items-center space-x-2">
+                            {availabilityStatus.checking && (
+                              <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                            )}
+                            <span className={`text-sm font-medium ${
+                              availabilityStatus.checking
+                                ? 'text-gray-700'
+                                : availabilityStatus.available
+                                  ? 'text-green-700'
+                                  : 'text-red-700'
+                            }`}>
+                              {availabilityStatus.message}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Meet-up Information */}
                     <div className="space-y-3">
                       <Label className="text-black font-medium">Meet-up Arrangement</Label>
@@ -572,7 +687,13 @@ export default function CheckoutPage() {
                     <Button
                       onClick={handleCreateRental}
                       className="bg-black text-white hover:bg-gray-800"
-                      disabled={!startDate || !endDate || loading}
+                      disabled={
+                        !startDate ||
+                        !endDate ||
+                        loading ||
+                        availabilityStatus.checking ||
+                        availabilityStatus.available === false
+                      }
                     >
                       {loading ? "Creating..." : "Continue to Agreement"}
                     </Button>

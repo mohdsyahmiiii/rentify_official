@@ -141,13 +141,26 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
         features: item.features || ['High Quality', 'Well Maintained', 'Ready to Use'],
         availability: {
           available: item.is_available,
-          nextAvailable: item.is_available ? undefined : '2024-01-25',
+          nextAvailable: item.is_available ? undefined : null,
         },
         policies: {
           cancellation: item.cancellation_policy || 'Free cancellation up to 24 hours before pickup',
           damage: item.damage_policy || 'Damage protection included',
           lateFee: `$${item.late_fee_per_day || 10} per day for late returns`,
         },
+      }
+
+      // Get real availability status
+      const { data: availabilityData } = await supabase
+        .from('item_availability')
+        .select('base_available, next_available_date')
+        .eq('item_id', item.id)
+        .single()
+
+      // Update availability in transformed item
+      transformedItem.availability = {
+        available: availabilityData?.base_available || false,
+        nextAvailable: availabilityData?.next_available_date || null,
       }
 
       setItemData(transformedItem)
@@ -352,9 +365,11 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
                     <Button disabled className="w-full" size="lg">
                       Currently Unavailable
                     </Button>
-                    <p className="text-sm text-gray-600 text-center">
-                      Next available: {itemData.availability.nextAvailable}
-                    </p>
+                    {itemData.availability.nextAvailable && (
+                      <p className="text-sm text-gray-600 text-center">
+                        Next available: {new Date(itemData.availability.nextAvailable).toLocaleDateString()}
+                      </p>
+                    )}
                   </div>
                 )}
               </CardContent>

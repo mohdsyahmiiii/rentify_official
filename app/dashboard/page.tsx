@@ -218,6 +218,30 @@ export default function DashboardPage() {
     }
   }
 
+  const toggleItemAvailability = async (itemId: string, newAvailability: boolean) => {
+    try {
+      const supabase = createClient()
+
+      const { error } = await supabase
+        .from('items')
+        .update({
+          is_available: newAvailability,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', itemId)
+
+      if (error) {
+        console.error('Error updating item availability:', error)
+        return
+      }
+
+      // Refresh dashboard data to show updated availability
+      fetchDashboardData()
+    } catch (error) {
+      console.error('Error toggling item availability:', error)
+    }
+  }
+
   const handleReturnAction = async (rentalId: string, action: 'initiate' | 'confirm' | 'confirm_pickup', options?: any) => {
     try {
       const supabase = createClient()
@@ -522,22 +546,38 @@ export default function DashboardPage() {
                         <p className="text-sm text-gray-600">Location: {item.location}</p>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 border-black hover:bg-black hover:text-white"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            View
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 border-black hover:bg-black hover:text-white"
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit
+                          </Button>
+                        </div>
+
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="flex-1 border-black hover:bg-black hover:text-white"
+                          variant={item.is_available ? "outline" : "default"}
+                          className={`w-full ${
+                            item.is_available
+                              ? "border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white"
+                              : "bg-green-600 hover:bg-green-700 text-white"
+                          }`}
+                          onClick={() => toggleItemAvailability(item.id, !item.is_available)}
                         >
-                          <Eye className="w-4 h-4 mr-1" />
-                          View
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 border-black hover:bg-black hover:text-white"
-                        >
-                          <Edit className="w-4 h-4 mr-1" />
-                          Edit
+                          <Calendar className="w-4 h-4 mr-1" />
+                          {item.is_available ? "Block Dates" : "Make Available"}
                         </Button>
                       </div>
                     </CardContent>

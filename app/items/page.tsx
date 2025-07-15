@@ -24,6 +24,7 @@ interface Item {
   image: string
   owner: string
   available: boolean
+  nextAvailable?: string
   description: string
 }
 
@@ -45,6 +46,7 @@ export default function ItemsPage() {
     try {
       const supabase = createClient()
 
+      // Fetch items with fallback for availability checking
       const { data: items, error } = await supabase
         .from('items')
         .select(`
@@ -52,28 +54,53 @@ export default function ItemsPage() {
           categories(name),
           profiles(full_name)
         `)
-        .in('status', ['approved', 'pending'])
+        .in('status', ['approved', 'pending']) // Show approved and pending items
         .order('created_at', { ascending: false })
 
       if (error) {
         console.error('Error fetching items:', error)
       } else {
-        // Transform database items to match the expected format
-        const transformedItems = items?.map(item => ({
-          id: item.id,
-          name: item.title,
-          category: item.categories?.name || 'Other',
-          price: item.price_per_day,
-          rating: item.rating || 4.5,
-          reviews: item.total_reviews || 0,
-          location: item.location,
-          image: item.images?.[0] || "/placeholder.svg?height=200&width=300",
-          owner: item.profiles?.full_name || "Unknown",
-          available: item.is_available,
-          description: item.description,
-        })) || []
+        // Transform items with availability checking (with fallback)
+        const itemsWithAvailability = await Promise.all(
+          (items || []).map(async (item) => {
+            let available = item.is_available
+            let nextAvailable = null
 
-        setItems(transformedItems)
+            // Try to get enhanced availability if migration is complete
+            try {
+              const { data: availabilityData } = await supabase
+                .from('item_availability')
+                .select('base_available, next_available_date')
+                .eq('item_id', item.id)
+                .single()
+
+              if (availabilityData) {
+                available = availabilityData.base_available
+                nextAvailable = availabilityData.next_available_date
+              }
+            } catch (availError) {
+              // Fallback to basic availability if view doesn't exist yet
+              console.log('Using basic availability for item:', item.id)
+            }
+
+            return {
+              id: item.id,
+              name: item.title,
+              category: item.categories?.name || 'Other',
+              price: item.price_per_day,
+              rating: item.rating || 4.5,
+              reviews: item.total_reviews || 0,
+              location: item.location,
+              image: item.images?.[0] || "/placeholder.svg?height=200&width=300",
+              owner: item.profiles?.full_name || "Unknown",
+              available: available,
+              nextAvailable: nextAvailable,
+              description: item.description,
+            }
+          })
+        )
+
+        setItems(itemsWithAvailability)
       }
     } catch (error) {
       console.error('Error fetching items:', error)
@@ -220,9 +247,22 @@ export default function ItemsPage() {
                     <MapPin className="w-4 h-4 mr-1" />
                     {item.location}
                   </div>
-                  <Button asChild className="w-full bg-black text-white hover:bg-gray-800" disabled={!item.available}>
-                    <Link href={`/items/${item.id}`}>{item.available ? "Rent Now" : "View Details"}</Link>
-                  </Button>
+                  {item.available ? (
+                    <Button asChild className="w-full bg-black text-white hover:bg-gray-800">
+                      <Link href={`/items/${item.id}`}>Rent Now</Link>
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <Button disabled className="w-full">
+                        Currently Unavailable
+                      </Button>
+                      {item.nextAvailable && (
+                        <p className="text-xs text-gray-600 text-center">
+                          Available from: {new Date(item.nextAvailable).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -264,9 +304,22 @@ export default function ItemsPage() {
                       <MapPin className="w-4 h-4 mr-1" />
                       {item.location}
                     </div>
-                    <Button asChild className="bg-black text-white hover:bg-gray-800" disabled={!item.available}>
-                      <Link href={`/items/${item.id}`}>{item.available ? "Rent Now" : "View Details"}</Link>
-                    </Button>
+                    {item.available ? (
+                      <Button asChild className="bg-black text-white hover:bg-gray-800">
+                        <Link href={`/items/${item.id}`}>Rent Now</Link>
+                      </Button>
+                    ) : (
+                      <div className="space-y-2">
+                        <Button disabled className="w-full">
+                          Currently Unavailable
+                        </Button>
+                        {item.nextAvailable && (
+                          <p className="text-xs text-gray-600">
+                            Available from: {new Date(item.nextAvailable).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </Card>

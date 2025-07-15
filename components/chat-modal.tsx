@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { SimpleModal } from "@/components/simple-modal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -228,36 +228,35 @@ export function ChatModal({
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
+      // Force immediate cleanup before calling onClose
+      document.body.style.pointerEvents = ''
+      document.body.style.overflow = ''
+      document.body.style.paddingRight = ''
       onClose()
     }
   }
 
-  // Cleanup effect to ensure proper modal state
-  useEffect(() => {
-    return () => {
-      // Cleanup when component unmounts
-      document.body.style.pointerEvents = ''
-      document.body.style.overflow = ''
-    }
-  }, [])
+
 
   return (
-    <Dialog key={`${recipientId}-${itemId}`} open={isOpen} onOpenChange={handleOpenChange} modal={true}>
-      <DialogContent className="sm:max-w-md h-[600px] flex flex-col p-0">
-        <DialogHeader className="p-4 border-b">
-          <div className="flex items-center space-x-3">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src="/placeholder-user.jpg" />
-              <AvatarFallback>{recipientName.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div>
-              <DialogTitle className="text-lg">{recipientName}</DialogTitle>
-              {itemTitle && (
-                <p className="text-sm text-gray-500">About: {itemTitle}</p>
-              )}
-            </div>
+    <SimpleModal
+      isOpen={isOpen}
+      onClose={handleOpenChange}
+      title={
+        <div className="flex items-center space-x-3">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src="/placeholder-user.jpg" />
+            <AvatarFallback>{recipientName.charAt(0).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <div>
+            <div className="text-lg">{recipientName}</div>
+            {itemTitle && (
+              <p className="text-sm text-gray-500">About: {itemTitle}</p>
+            )}
           </div>
-        </DialogHeader>
+        </div>
+      }
+    >
 
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-4">
@@ -312,7 +311,6 @@ export function ChatModal({
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </SimpleModal>
   )
 }

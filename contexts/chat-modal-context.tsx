@@ -45,15 +45,14 @@ export function ChatModalProvider({ children }: { children: React.ReactNode }) {
 
   const closeChat = () => {
     setIsOpen(false)
-    // Delay clearing conversation to allow modal to close properly
-    setTimeout(() => {
-      setConversation(null)
-      setModalKey(prev => prev + 1)
-    }, 200)
+    setConversation(null)
+    setModalKey(prev => prev + 1)
   }
 
+  const contextValue = React.useMemo(() => ({ openChat, closeChat, isOpen }), [openChat, closeChat, isOpen])
+
   return (
-    <ChatModalContext.Provider value={{ openChat, closeChat, isOpen }}>
+    <ChatModalContext.Provider value={contextValue}>
       {children}
       {/* Global Chat Modal - Only render on client-side after hydration */}
       {isMounted && conversation && isOpen && (

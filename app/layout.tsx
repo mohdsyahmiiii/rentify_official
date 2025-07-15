@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Suspense } from "react"
 import { Navigation } from "@/components/navigation"
 import { ChatModalProvider } from "@/contexts/chat-modal-context"
+import { UserProvider } from "@/contexts/user-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -23,11 +24,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ChatModalProvider>
-          {/* Navigation */}
-          <Navigation />
+        <UserProvider>
+          <ChatModalProvider>
+            {/* Navigation */}
+            <Navigation />
 
-          <Suspense>{children}</Suspense>
+            <Suspense>{children}</Suspense>
 
         {/* Footer */}
         <footer className="bg-black text-white py-12 mt-16">
@@ -48,7 +50,8 @@ export default function RootLayout({
             </div>
           </div>
         </footer>
-        </ChatModalProvider>
+          </ChatModalProvider>
+        </UserProvider>
       </body>
     </html>
   )

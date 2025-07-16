@@ -12,9 +12,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate date format and logic
-    // Parse dates as local dates to avoid timezone issues
-    const start = new Date(startDate + 'T00:00:00')
-    const end = new Date(endDate + 'T00:00:00')
+    // Parse dates consistently with frontend - create date objects at local midnight
+    const startParts = startDate.split('-')
+    const endParts = endDate.split('-')
+    const start = new Date(parseInt(startParts[0]), parseInt(startParts[1]) - 1, parseInt(startParts[2]))
+    const end = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]))
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return NextResponse.json({
@@ -29,8 +31,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Compare with today's date at midnight to match frontend validation
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    // Use the exact same logic as frontend: new Date(new Date().setHours(0, 0, 0, 0))
+    const today = new Date(new Date().setHours(0, 0, 0, 0))
 
     if (start < today) {
       return NextResponse.json({

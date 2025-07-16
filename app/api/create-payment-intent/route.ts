@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { rentalId, amount, currency = "usd", applicationFeeAmount, stripeAccountId } = await request.json()
+    const { rentalId, amount, currency = "myr", applicationFeeAmount, stripeAccountId } = await request.json()
 
     // Get rental details from database
     const { data: rental, error: rentalError } = await supabase

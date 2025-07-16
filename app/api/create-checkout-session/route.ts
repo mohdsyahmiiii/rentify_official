@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       line_items: [
         {
           price_data: {
-            currency: "usd",
+            currency: "myr",
             product_data: {
               name: `Rental: ${rental.items.title}`,
               description: `${rental.total_days} day rental`,
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
         },
         {
           price_data: {
-            currency: "usd",
+            currency: "myr",
             product_data: {
               name: "Service Fee",
               description: "Rentify platform fee",
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         },
         {
           price_data: {
-            currency: "usd",
+            currency: "myr",
             product_data: {
               name: "Insurance Fee",
               description: "Rental protection insurance",

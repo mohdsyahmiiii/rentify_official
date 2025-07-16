@@ -4,9 +4,9 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import Link from "next/link"
 import { Suspense } from "react"
-import { Navigation } from "@/components/navigation"
 import { ChatModalProvider } from "@/contexts/chat-modal-context"
 import { UserProvider } from "@/contexts/user-context"
+import { LayoutWrapper } from "@/components/layout-wrapper"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -26,10 +26,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <UserProvider>
           <ChatModalProvider>
-            {/* Navigation */}
-            <Navigation />
-
-            <Suspense>{children}</Suspense>
+            <LayoutWrapper>
+              <Suspense>{children}</Suspense>
+            </LayoutWrapper>
 
         {/* Footer */}
         <footer className="bg-black text-white py-12 mt-16">

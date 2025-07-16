@@ -12,6 +12,7 @@ import Link from "next/link"
 import { formatCurrency } from "@/lib/utils/currency"
 import { createClient } from "@/lib/supabase/client"
 import { MessagesList } from "@/components/messages-list"
+import { DashboardRecovery } from "@/components/dashboard-recovery"
 import { ReviewForm } from "@/components/review-form"
 import type { User } from "@supabase/supabase-js"
 
@@ -79,24 +80,38 @@ export default function DashboardPage() {
   }, [])
 
   const fetchDashboardData = async () => {
+    console.log('🔄 Dashboard: Starting data fetch...')
+
+    // Set a timeout for the entire dashboard loading process
+    const timeoutId = setTimeout(() => {
+      console.error('⚠️ Dashboard: Loading timeout after 15 seconds')
+      setAuthError('Dashboard loading is taking too long. Please refresh the page.')
+      setLoading(false)
+    }, 15000)
+
     try {
       const supabase = createClient()
 
-      // Get the authenticated user
+      // Get the authenticated user with timeout
+      console.log('🔍 Dashboard: Fetching user...')
       const { data: { user }, error: authError } = await supabase.auth.getUser()
 
       if (authError || !user) {
-        console.error('Authentication error:', authError)
+        console.error('❌ Dashboard: Authentication error:', authError)
         setAuthError('You must be logged in to view the dashboard. Please sign in.')
         setLoading(false)
+        clearTimeout(timeoutId)
         return
       }
 
+      console.log('✅ Dashboard: User authenticated:', user.id)
       setUser(user)
       const userId = user.id
 
       // Fetch items, renter rentals, and owner rentals in parallel for better performance
-      const [itemsResult, rentalsResult, ownerRentalsResult] = await Promise.all([
+      console.log('📊 Dashboard: Fetching dashboard data in parallel...')
+
+      const [itemsResult, rentalsResult, ownerRentalsResult] = await Promise.allSettled([
         supabase
           .from('items')
           .select(`
@@ -127,54 +142,93 @@ export default function DashboardPage() {
           .order('created_at', { ascending: false })
       ])
 
-      // Handle items result
-      if (itemsResult.error) {
-        console.error('Error fetching items:', itemsResult.error)
-      } else {
-        console.log('Fetched items:', itemsResult.data)
-        setMyItems(itemsResult.data || [])
+      console.log('📊 Dashboard: Parallel queries completed')
 
-        // Calculate stats from items
-        const totalItems = itemsResult.data?.length || 0
-        setUserStats(prev => ({
-          ...prev,
-          totalItems
-        }))
+      // Handle items result with better error handling
+      if (itemsResult.status === 'fulfilled') {
+        if (itemsResult.value.error) {
+          console.error('❌ Dashboard: Error fetching items:', itemsResult.value.error)
+          setMyItems([]) // Set empty array as fallback
+        } else {
+          console.log('✅ Dashboard: Fetched items:', itemsResult.value.data?.length || 0)
+          setMyItems(itemsResult.value.data || [])
+
+          // Calculate stats from items
+          const totalItems = itemsResult.value.data?.length || 0
+          setUserStats(prev => ({
+            ...prev,
+            totalItems
+          }))
+        }
+      } else {
+        console.error('❌ Dashboard: Items query rejected:', itemsResult.reason)
+        setMyItems([])
       }
 
-      // Handle rentals result
-      if (rentalsResult.error) {
-        console.error('Error fetching rentals:', rentalsResult.error)
+      // Handle rentals result with better error handling
+      let renterActiveRentals = 0
+      if (rentalsResult.status === 'fulfilled') {
+        if (rentalsResult.value.error) {
+          console.error('❌ Dashboard: Error fetching rentals:', rentalsResult.value.error)
+          setMyRentals([])
+        } else {
+          console.log('✅ Dashboard: Fetched rentals:', rentalsResult.value.data?.length || 0)
+          const rentals = rentalsResult.value.data || []
+          setMyRentals(rentals)
+          renterActiveRentals = rentals.filter(r => r.status === 'active').length
+        }
       } else {
-        console.log('Fetched rentals:', rentalsResult.data)
-        setMyRentals(rentalsResult.data || [])
+        console.error('❌ Dashboard: Rentals query rejected:', rentalsResult.reason)
+        setMyRentals([])
       }
 
-      // Handle owner rentals result
-      if (ownerRentalsResult.error) {
-        console.error('Error fetching owner rentals:', ownerRentalsResult.error)
+      // Handle owner rentals result with better error handling
+      let ownerActiveRentals = 0
+      if (ownerRentalsResult.status === 'fulfilled') {
+        if (ownerRentalsResult.value.error) {
+          console.error('❌ Dashboard: Error fetching owner rentals:', ownerRentalsResult.value.error)
+          setOwnerRentals([])
+        } else {
+          console.log('✅ Dashboard: Fetched owner rentals:', ownerRentalsResult.value.data?.length || 0)
+          const ownerRentals = ownerRentalsResult.value.data || []
+          setOwnerRentals(ownerRentals)
+          ownerActiveRentals = ownerRentals.filter(r => r.status === 'active').length
+        }
       } else {
-        console.log('Fetched owner rentals:', ownerRentalsResult.data)
-        setOwnerRentals(ownerRentalsResult.data || [])
-
-        // Update stats to include both renter and owner active rentals
-        const renterActiveRentals = (rentalsResult.data || []).filter(r => r.status === 'active').length
-        const ownerActiveRentals = (ownerRentalsResult.data || []).filter(r => r.status === 'active').length
-        const totalActiveRentals = renterActiveRentals + ownerActiveRentals
-
-        setUserStats(prev => ({
-          ...prev,
-          activeRentals: totalActiveRentals
-        }))
+        console.error('❌ Dashboard: Owner rentals query rejected:', ownerRentalsResult.reason)
+        setOwnerRentals([])
       }
 
-      // Fetch reviewed rentals and user profile
-      await fetchReviewedRentals(userId)
-      await fetchUserProfile(userId)
+      // Update stats with both renter and owner active rentals
+      const totalActiveRentals = renterActiveRentals + ownerActiveRentals
+      setUserStats(prev => ({
+        ...prev,
+        activeRentals: totalActiveRentals
+      }))
 
+      // Fetch reviewed rentals and user profile with error handling
+      console.log('📊 Dashboard: Fetching additional data...')
+      try {
+        await fetchReviewedRentals(userId)
+        console.log('✅ Dashboard: Reviewed rentals fetched')
+      } catch (err) {
+        console.error('❌ Dashboard: Error fetching reviewed rentals:', err)
+      }
+
+      try {
+        await fetchUserProfile(userId)
+        console.log('✅ Dashboard: User profile fetched')
+      } catch (err) {
+        console.error('❌ Dashboard: Error fetching user profile:', err)
+      }
+
+      console.log('🎉 Dashboard: All data loaded successfully')
+      clearTimeout(timeoutId)
       setLoading(false)
     } catch (error) {
-      console.error('Error fetching dashboard data:', error)
+      console.error('❌ Dashboard: Critical error fetching dashboard data:', error)
+      setAuthError('Failed to load dashboard data. Please refresh the page.')
+      clearTimeout(timeoutId)
       setLoading(false)
     }
   }
@@ -302,32 +356,14 @@ export default function DashboardPage() {
     }
   }
 
-  if (loading) {
+  // Show dashboard recovery component for loading states and errors
+  if (loading || authError) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (authError) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-6">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            <p className="font-medium">Authentication Required</p>
-            <p className="text-sm">{authError}</p>
-          </div>
-          <Button asChild className="bg-black text-white hover:bg-gray-800">
-            <Link href="/auth/signin">
-              Sign In
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <DashboardRecovery
+        loading={loading}
+        error={authError}
+        onRetry={fetchDashboardData}
+      />
     )
   }
 

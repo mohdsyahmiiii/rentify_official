@@ -10,7 +10,7 @@ import { useChatModal } from "@/contexts/chat-modal-context"
 import { useUser } from "@/contexts/user-context"
 
 export function Navigation() {
-  const { user } = useUser()
+  const { user, loading, error } = useUser()
   const { openChat } = useChatModal()
 
   const handleConversationClick = (conversation: {

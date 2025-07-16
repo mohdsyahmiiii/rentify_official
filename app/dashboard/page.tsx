@@ -71,7 +71,6 @@ export default function DashboardPage() {
   const [myItems, setMyItems] = useState<Item[]>([])
   const [myRentals, setMyRentals] = useState<Rental[]>([])
   const [ownerRentals, setOwnerRentals] = useState<Rental[]>([])
-  const [recentTransactions, setRecentTransactions] = useState<any[]>([])
   const [reviewedRentals, setReviewedRentals] = useState<Set<string>>(new Set())
 
   // Fetch dashboard data
@@ -381,7 +380,7 @@ export default function DashboardPage() {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 bg-white border-2">
+          <TabsList className="grid w-full grid-cols-5 bg-white border-2">
             <TabsTrigger value="overview" className="data-[state=active]:bg-black data-[state=active]:text-white">
               Overview
             </TabsTrigger>
@@ -396,9 +395,6 @@ export default function DashboardPage() {
             </TabsTrigger>
             <TabsTrigger value="messages" className="data-[state=active]:bg-black data-[state=active]:text-white">
               Messages
-            </TabsTrigger>
-            <TabsTrigger value="transactions" className="data-[state=active]:bg-black data-[state=active]:text-white">
-              Transactions
             </TabsTrigger>
           </TabsList>
 
@@ -758,17 +754,7 @@ export default function DashboardPage() {
             <MessagesList user={user} />
           </TabsContent>
 
-          <TabsContent value="transactions" className="space-y-6">
-            <h2 className="text-2xl font-bold text-black">Transaction History</h2>
 
-            <Card className="border-2">
-              <CardContent className="p-12 text-center">
-                <Clock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No transactions yet</h3>
-                <p className="text-gray-600">Your transaction history will appear here once you start renting or earning from your items.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
     </div>

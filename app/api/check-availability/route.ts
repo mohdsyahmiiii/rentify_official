@@ -27,9 +27,13 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    if (start < new Date()) {
-      return NextResponse.json({ 
-        error: "Start date cannot be in the past" 
+    // Compare with today's date at midnight to match frontend validation
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    if (start < today) {
+      return NextResponse.json({
+        error: "Start date cannot be in the past"
       }, { status: 400 })
     }
 

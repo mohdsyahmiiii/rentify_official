@@ -158,12 +158,6 @@ export function UserMenu() {
             Settings
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/admin" className="cursor-pointer">
-            <Settings className="mr-2 h-4 w-4" />
-            Admin Panel
-          </Link>
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem 
           className="cursor-pointer" 

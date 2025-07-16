@@ -800,11 +800,6 @@ export default function CheckoutPage() {
                   <div className="flex-1">
                     <h3 className="font-semibold text-black">{itemData.name}</h3>
                     <p className="text-sm text-gray-600">{itemData.category}</p>
-                    <div className="flex items-center mt-1">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm text-black ml-1">{itemData.rating}</span>
-                      <span className="text-sm text-gray-600 ml-1">({itemData.reviews})</span>
-                    </div>
                   </div>
                 </div>
 

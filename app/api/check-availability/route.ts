@@ -12,11 +12,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate date format and logic
-    // Parse dates consistently with frontend - create date objects at local midnight
-    const startParts = startDate.split('-')
-    const endParts = endDate.split('-')
-    const start = new Date(parseInt(startParts[0]), parseInt(startParts[1]) - 1, parseInt(startParts[2]))
-    const end = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]))
+    // Parse dates as YYYY-MM-DD strings and compare as strings to avoid timezone issues
+    const start = new Date(startDate)
+    const end = new Date(endDate)
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return NextResponse.json({
@@ -30,11 +28,13 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Compare with today's date at midnight to match frontend validation
-    // Use the exact same logic as frontend: new Date(new Date().setHours(0, 0, 0, 0))
-    const today = new Date(new Date().setHours(0, 0, 0, 0))
+    // Get today's date in local timezone, not UTC
+    const today = new Date()
+    const todayString = today.getFullYear() + '-' +
+                       String(today.getMonth() + 1).padStart(2, '0') + '-' +
+                       String(today.getDate()).padStart(2, '0')
 
-    if (start < today) {
+    if (startDate < todayString) {
       return NextResponse.json({
         error: "Start date cannot be in the past"
       }, { status: 400 })

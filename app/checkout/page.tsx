@@ -188,8 +188,8 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           itemId: itemData.id,
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0]
+          startDate: startDate.getFullYear() + '-' + String(startDate.getMonth() + 1).padStart(2, '0') + '-' + String(startDate.getDate()).padStart(2, '0'),
+          endDate: endDate.getFullYear() + '-' + String(endDate.getMonth() + 1).padStart(2, '0') + '-' + String(endDate.getDate()).padStart(2, '0')
         })
       })
 
@@ -259,8 +259,8 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           itemId: itemData.id,
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0]
+          startDate: startDate.getFullYear() + '-' + String(startDate.getMonth() + 1).padStart(2, '0') + '-' + String(startDate.getDate()).padStart(2, '0'),
+          endDate: endDate.getFullYear() + '-' + String(endDate.getMonth() + 1).padStart(2, '0') + '-' + String(endDate.getDate()).padStart(2, '0')
         })
       })
 
@@ -288,8 +288,8 @@ export default function CheckoutPage() {
         item_id: itemData.id,
         renter_id: user.id,
         owner_id: realItem.owner_id,
-        start_date: startDate?.toISOString().split('T')[0], // Format as YYYY-MM-DD
-        end_date: endDate?.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        start_date: startDate ? startDate.getFullYear() + '-' + String(startDate.getMonth() + 1).padStart(2, '0') + '-' + String(startDate.getDate()).padStart(2, '0') : null, // Format as YYYY-MM-DD
+        end_date: endDate ? endDate.getFullYear() + '-' + String(endDate.getMonth() + 1).padStart(2, '0') + '-' + String(endDate.getDate()).padStart(2, '0') : null, // Format as YYYY-MM-DD
         total_days: rentalDays,
         price_per_day: itemData.price,
         subtotal: costs.subtotal,

@@ -181,7 +181,7 @@ export default function ListItemPage() {
           late_fee_per_day: parseFloat(formData.late_fee_per_day),
           cancellation_policy: formData.cancellation_policy,
           damage_policy: formData.damage_policy,
-          status: 'pending'
+          status: 'approved'
         })
         .select()
         .single()
@@ -195,7 +195,7 @@ export default function ListItemPage() {
       }
 
       console.log("Item created successfully!")
-      setSuccess("Item listed successfully! It will be reviewed before going live.")
+      setSuccess("Item listed successfully! Your item is now live and available for rent.")
       setTimeout(() => {
         router.push("/dashboard")
       }, 2000)

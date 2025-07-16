@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { User, Mail, Phone, MapPin, Calendar, Star, Shield } from "lucide-react"
+import { User, Mail, Phone, Calendar, Star, Shield } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { TelegramLink } from "@/components/telegram-link"
 
@@ -19,8 +19,6 @@ interface UserProfile {
   full_name: string
   avatar_url?: string
   phone?: string
-  bio?: string
-  location?: string
   date_of_birth?: string
   is_verified: boolean
   rating: number
@@ -35,11 +33,10 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [formData, setFormData] = useState({
     full_name: "",
     phone: "",
-    bio: "",
-    location: "",
     date_of_birth: "",
   })
 
@@ -48,52 +45,121 @@ export default function ProfilePage() {
   }, [])
 
   const fetchProfile = async () => {
+    console.log("🔄 Profile: Fetching profile data...")
+
     try {
       const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-      if (user) {
-        const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+      if (authError) {
+        console.error("❌ Profile: Authentication error:", authError)
+        setLoading(false)
+        return
+      }
 
-        if (profileData) {
-          setProfile(profileData)
-          setFormData({
-            full_name: profileData.full_name || "",
-            phone: profileData.phone || "",
-            bio: profileData.bio || "",
-            location: profileData.location || "",
-            date_of_birth: profileData.date_of_birth || "",
-          })
-        }
+      if (!user) {
+        console.error("❌ Profile: No authenticated user found")
+        setLoading(false)
+        return
+      }
+
+      console.log("✅ Profile: User authenticated:", user.id)
+
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError) {
+        console.error("❌ Profile: Error fetching profile data:", profileError)
+        setLoading(false)
+        return
+      }
+
+      if (profileData) {
+        console.log("✅ Profile: Profile data fetched successfully")
+        setProfile(profileData)
+        setFormData({
+          full_name: profileData.full_name || "",
+          phone: profileData.phone || "",
+          date_of_birth: profileData.date_of_birth || "",
+        })
+      } else {
+        console.log("⚠️ Profile: No profile data found for user")
       }
     } catch (error) {
-      console.error("Error fetching profile:", error)
+      console.error("❌ Profile: Unexpected error fetching profile:", error)
     } finally {
       setLoading(false)
     }
   }
 
   const handleSave = async () => {
-    if (!profile) return
+    if (!profile) {
+      console.error("❌ Profile: No profile data available for update")
+      setSaveMessage({ type: 'error', text: 'No profile data available. Please refresh the page.' })
+      return
+    }
 
+    console.log("🔄 Profile: Starting profile update...", { userId: profile.id, formData })
     setSaving(true)
+    setSaveMessage(null)
+
+    // Set a timeout for the save operation
+    const timeoutId = setTimeout(() => {
+      console.error("⚠️ Profile: Save operation timeout")
+      setSaveMessage({ type: 'error', text: 'Save operation is taking too long. Please try again.' })
+      setSaving(false)
+    }, 15000)
+
     try {
       const supabase = createClient()
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          ...formData,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", profile.id)
 
-      if (!error) {
+      // Verify user is still authenticated
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError || !user) {
+        console.error("❌ Profile: Authentication error during update:", authError)
+        setSaveMessage({ type: 'error', text: 'Authentication error. Please refresh the page and try again.' })
+        clearTimeout(timeoutId)
+        setSaving(false)
+        return
+      }
+
+      console.log("✅ Profile: User authenticated, proceeding with update...")
+
+      const updateData = {
+        ...formData,
+        updated_at: new Date().toISOString(),
+      }
+
+      console.log("📝 Profile: Updating with data:", updateData)
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .update(updateData)
+        .eq("id", profile.id)
+        .select()
+
+      console.log("📊 Profile: Update result:", { data, error })
+
+      clearTimeout(timeoutId)
+
+      if (error) {
+        console.error("❌ Profile: Database update failed:", error)
+        setSaveMessage({ type: 'error', text: `Failed to update profile: ${error.message}` })
+      } else {
+        console.log("✅ Profile: Update successful!")
         setProfile({ ...profile, ...formData })
+        setSaveMessage({ type: 'success', text: 'Profile updated successfully!' })
+
+        // Clear success message after 3 seconds
+        setTimeout(() => setSaveMessage(null), 3000)
       }
     } catch (error) {
-      console.error("Error saving profile:", error)
+      console.error("❌ Profile: Unexpected error during save:", error)
+      setSaveMessage({ type: 'error', text: 'An unexpected error occurred. Please try again.' })
+      clearTimeout(timeoutId)
     } finally {
       setSaving(false)
     }
@@ -143,9 +209,11 @@ export default function ProfilePage() {
             <CardContent className="space-y-6">
               <div className="flex items-center space-x-4">
                 <Avatar className="w-20 h-20 border-2">
-                  <AvatarImage src={profile.avatar_url || "/placeholder.svg"} alt={profile.full_name} />
-                  <AvatarFallback className="bg-black text-white text-xl">
-                    {profile.full_name?.charAt(0) || "U"}
+                  {profile.avatar_url ? (
+                    <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
+                  ) : null}
+                  <AvatarFallback className="bg-gray-100 text-gray-600">
+                    <User className="w-10 h-10" />
                   </AvatarFallback>
                 </Avatar>
                 <div>
@@ -195,32 +263,7 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="location" className="text-black font-medium">
-                  Location
-                </Label>
-                <Input
-                  id="location"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  className="border-gray-300 focus:border-black"
-                  placeholder="City, State"
-                />
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="bio" className="text-black font-medium">
-                  Bio
-                </Label>
-                <Textarea
-                  id="bio"
-                  value={formData.bio}
-                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  className="border-gray-300 focus:border-black"
-                  placeholder="Tell others about yourself..."
-                  rows={4}
-                />
-              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="date_of_birth" className="text-black font-medium">
@@ -234,6 +277,17 @@ export default function ProfilePage() {
                   className="border-gray-300 focus:border-black"
                 />
               </div>
+
+              {/* Save Message */}
+              {saveMessage && (
+                <div className={`p-3 rounded-md text-sm ${
+                  saveMessage.type === 'success'
+                    ? 'bg-green-50 text-green-800 border border-green-200'
+                    : 'bg-red-50 text-red-800 border border-red-200'
+                }`}>
+                  {saveMessage.text}
+                </div>
+              )}
 
               <Button onClick={handleSave} disabled={saving} className="w-full bg-black text-white hover:bg-gray-800">
                 {saving ? "Saving..." : "Save Changes"}
@@ -310,12 +364,7 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {profile.location && (
-                <div className="flex items-center space-x-3">
-                  <MapPin className="w-4 h-4 text-gray-600" />
-                  <span className="text-black">{profile.location}</span>
-                </div>
-              )}
+
             </CardContent>
           </Card>
         </div>

@@ -12,18 +12,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate date format and logic
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-    
+    // Parse dates as local dates to avoid timezone issues
+    const start = new Date(startDate + 'T00:00:00')
+    const end = new Date(endDate + 'T00:00:00')
+
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return NextResponse.json({ 
-        error: "Invalid date format" 
+      return NextResponse.json({
+        error: "Invalid date format"
       }, { status: 400 })
     }
 
     if (start >= end) {
-      return NextResponse.json({ 
-        error: "End date must be after start date" 
+      return NextResponse.json({
+        error: "End date must be after start date"
       }, { status: 400 })
     }
 

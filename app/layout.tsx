@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   description: "Rent anything, anytime. The ultimate peer-to-peer rental marketplace.",
     generator: 'v0.dev'
 }
+// Force rebuild to clear Vercel cache
 
 export default function RootLayout({
   children,

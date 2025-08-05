@@ -125,6 +125,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           setUser(session?.user ?? null)
           setError(null)
           setLoading(false)
+          // Start automatic refresh when user signs in
+          setupSessionRefresh()
         } else if (event === 'USER_UPDATED') {
           setUser(session?.user ?? null)
           setError(null)
@@ -132,16 +134,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           // For other events, update user but don't change loading state during initial load
           setUser(session?.user ?? null)
           setError(null)
-          if (!loading) {
-            setLoading(false)
-          }
+          // Removed loading state reference to prevent stale closure
         }
       }
     )
 
     // Enhanced page visibility handling for production stability
     const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && user) {
+      if (document.visibilityState === 'visible') {
         console.log('👁️ UserContext: Page became visible, checking session health')
         try {
           // Add timeout to prevent hanging
@@ -199,9 +199,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
 
       refreshIntervalRef.current = setInterval(async () => {
-        if (user) {
-          console.log('🔄 UserContext: Automatic session refresh')
-          try {
+        // Check current session instead of stale user state
+        try {
+          const { data: { session: currentSession } } = await supabase.auth.getSession()
+          if (currentSession?.user) {
+            console.log('🔄 UserContext: Automatic session refresh')
             const { data: { session }, error } = await supabase.auth.refreshSession()
             if (error) {
               console.error('❌ UserContext: Automatic session refresh failed:', error)
@@ -209,17 +211,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
               console.log('✅ UserContext: Session refreshed automatically')
               setUser(session?.user ?? null)
             }
-          } catch (err) {
-            console.error('❌ UserContext: Error during automatic refresh:', err)
           }
+        } catch (err) {
+          console.error('❌ UserContext: Error during automatic refresh:', err)
         }
       }, 45 * 60 * 1000) // 45 minutes
     }
 
-    // Start automatic refresh if user is authenticated
-    if (user) {
-      setupSessionRefresh()
-    }
+    // Start automatic refresh - will be handled by auth state change listener
+    // Removed user state reference to prevent stale closure
 
     return () => {
       console.log('🧹 UserContext: Cleaning up auth subscription')

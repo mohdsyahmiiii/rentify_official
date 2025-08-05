@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Calendar, Package, Star, MapPin, Clock, Plus, Eye, Edit, RotateCcw, CheckCircle, AlertTriangle, MessageSquare } from "lucide-react"
+import { Calendar, Package, Star, MapPin, Clock, Plus, Eye, Edit, RotateCcw, CheckCircle, AlertTriangle, MessageSquare, Loader2 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { formatCurrency } from "@/lib/utils/currency"
@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/client"
 import { MessagesList } from "@/components/messages-list"
 import { DashboardRecovery } from "@/components/dashboard-recovery"
 import { ReviewForm } from "@/components/review-form"
+import { useToast } from "@/hooks/use-toast"
 import type { User } from "@supabase/supabase-js"
 
 // Define types for our data
@@ -63,6 +64,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState<string | null>(null)
   const [user, setUser] = useState<User | null>(null)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const { toast } = useToast()
   const [userStats, setUserStats] = useState({
     activeRentals: 0,
     totalItems: 0,
@@ -296,6 +299,9 @@ export default function DashboardPage() {
   }
 
   const handleReturnAction = async (rentalId: string, action: 'initiate' | 'confirm' | 'confirm_pickup', options?: any) => {
+    // Set loading state for this specific action
+    setActionLoading(`${action}-${rentalId}`)
+
     try {
       const supabase = createClient()
 
@@ -308,10 +314,20 @@ export default function DashboardPage() {
 
         const data = await response.json()
         if (data.success) {
+          // Show success toast
+          toast({
+            title: "Return Initiated",
+            description: "Return process has been started successfully.",
+          })
           // Refresh dashboard data
           fetchDashboardData()
         } else {
           console.error('Failed to initiate return:', data.error)
+          toast({
+            title: "Error",
+            description: "Failed to initiate return. Please try again.",
+            variant: "destructive",
+          })
         }
       } else if (action === 'confirm') {
         const response = await fetch('/api/confirm-return', {
@@ -328,10 +344,20 @@ export default function DashboardPage() {
 
         const data = await response.json()
         if (data.success) {
+          // Show success toast
+          toast({
+            title: "Return Confirmed",
+            description: "Item return has been confirmed successfully.",
+          })
           // Refresh dashboard data
           fetchDashboardData()
         } else {
           console.error('Failed to confirm return:', data.error)
+          toast({
+            title: "Error",
+            description: "Failed to confirm return. Please try again.",
+            variant: "destructive",
+          })
         }
       } else if (action === 'confirm_pickup') {
         const response = await fetch('/api/confirm-pickup', {
@@ -345,14 +371,32 @@ export default function DashboardPage() {
 
         const data = await response.json()
         if (data.success) {
+          // Show success toast
+          toast({
+            title: "Item Received",
+            description: "You have successfully confirmed receiving the item. Your rental is now active!",
+          })
           // Refresh dashboard data
           fetchDashboardData()
         } else {
           console.error('Failed to confirm pickup:', data.error)
+          toast({
+            title: "Error",
+            description: "Failed to confirm pickup. Please try again.",
+            variant: "destructive",
+          })
         }
       }
     } catch (error) {
       console.error('Return action error:', error)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      // Clear loading state
+      setActionLoading(null)
     }
   }
 
@@ -691,6 +735,7 @@ export default function DashboardPage() {
                               onReviewSubmitted={(rentalId) => {
                                 setReviewedRentals(prev => new Set([...prev, rentalId]))
                               }}
+                              actionLoading={actionLoading}
                             />
                           </div>
                         </div>
@@ -774,6 +819,7 @@ export default function DashboardPage() {
                               onReviewSubmitted={(rentalId) => {
                                 setReviewedRentals(prev => new Set([...prev, rentalId]))
                               }}
+                              actionLoading={actionLoading}
                             />
                           </div>
                         </div>
@@ -798,11 +844,12 @@ export default function DashboardPage() {
 }
 
 // Owner Return Actions Component
-function OwnerReturnActions({ rental, onReturnAction, reviewedRentals, onReviewSubmitted }: {
+function OwnerReturnActions({ rental, onReturnAction, reviewedRentals, onReviewSubmitted, actionLoading }: {
   rental: Rental,
   onReturnAction: (rentalId: string, action: 'initiate' | 'confirm' | 'confirm_pickup', options?: any) => void,
   reviewedRentals: Set<string>,
-  onReviewSubmitted: (rentalId: string) => void
+  onReviewSubmitted: (rentalId: string) => void,
+  actionLoading: string | null
 }) {
   const today = new Date().toISOString().split('T')[0]
   const endDate = new Date(rental.end_date)
@@ -886,9 +933,14 @@ function OwnerReturnActions({ rental, onReturnAction, reviewedRentals, onReviewS
           size="sm"
           onClick={() => onReturnAction(rental.id, 'confirm')}
           className="bg-green-600 hover:bg-green-700 text-white"
+          disabled={actionLoading === `confirm-${rental.id}`}
         >
-          <CheckCircle className="w-4 h-4 mr-2" />
-          Confirm Item Received
+          {actionLoading === `confirm-${rental.id}` ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <CheckCircle className="w-4 h-4 mr-2" />
+          )}
+          {actionLoading === `confirm-${rental.id}` ? 'Confirming...' : 'Confirm Item Received'}
         </Button>
 
         {isOverdue && lateDays > 0 && (
@@ -929,11 +981,12 @@ function OwnerReturnActions({ rental, onReturnAction, reviewedRentals, onReviewS
 }
 
 // Return Actions Component (for renters)
-function ReturnActions({ rental, onReturnAction, reviewedRentals, onReviewSubmitted }: {
+function ReturnActions({ rental, onReturnAction, reviewedRentals, onReviewSubmitted, actionLoading }: {
   rental: Rental,
   onReturnAction: (rentalId: string, action: 'initiate' | 'confirm' | 'confirm_pickup', options?: any) => void,
   reviewedRentals: Set<string>,
-  onReviewSubmitted: (rentalId: string) => void
+  onReviewSubmitted: (rentalId: string) => void,
+  actionLoading: string | null
 }) {
   const today = new Date().toISOString().split('T')[0]
   const endDate = new Date(rental.end_date)
@@ -964,9 +1017,14 @@ function ReturnActions({ rental, onReturnAction, reviewedRentals, onReviewSubmit
           size="sm"
           onClick={() => onReturnAction(rental.id, 'confirm_pickup')}
           className="bg-green-600 hover:bg-green-700 text-white"
+          disabled={actionLoading === `confirm_pickup-${rental.id}`}
         >
-          <CheckCircle className="w-4 h-4 mr-2" />
-          Confirm Item Received
+          {actionLoading === `confirm_pickup-${rental.id}` ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <CheckCircle className="w-4 h-4 mr-2" />
+          )}
+          {actionLoading === `confirm_pickup-${rental.id}` ? 'Confirming...' : 'Confirm Item Received'}
         </Button>
 
         <p className="text-xs text-gray-600">
@@ -1050,9 +1108,17 @@ function ReturnActions({ rental, onReturnAction, reviewedRentals, onReviewSubmit
         size="sm"
         onClick={() => onReturnAction(rental.id, 'initiate')}
         className="bg-blue-600 hover:bg-blue-700 text-white"
+        disabled={actionLoading === `initiate-${rental.id}`}
       >
-        <RotateCcw className="w-4 h-4 mr-2" />
-        {isOverdue ? 'Return Now (Late)' : 'Initiate Return'}
+        {actionLoading === `initiate-${rental.id}` ? (
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+        ) : (
+          <RotateCcw className="w-4 h-4 mr-2" />
+        )}
+        {actionLoading === `initiate-${rental.id}`
+          ? 'Processing...'
+          : (isOverdue ? 'Return Now (Late)' : 'Initiate Return')
+        }
       </Button>
 
       <p className="text-xs text-gray-600">

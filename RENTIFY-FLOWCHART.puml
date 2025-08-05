@@ -1,0 +1,107 @@
+@startuml Rentify System Flowchart
+!theme plain
+title Rentify Peer-to-Peer Rental Marketplace - System Flowchart
+
+start
+
+:User visits Rentify platform;
+
+if (User registered?) then (No)
+  :Navigate to Registration;
+  :Fill registration form;
+  :Email verification;
+  :Create user profile;
+  :Login to system;
+else (Yes)
+  :User login;
+endif
+
+:Access main dashboard;
+
+if (User action?) then (Browse Items)
+  :View item listings;
+  :Apply filters (category, location, price);
+  :Select item of interest;
+  :View item details;
+  
+  if (Want to rent?) then (Yes)
+    :Check availability;
+    :Select rental dates;
+    :Calculate total cost;
+    :Generate AI rental agreement;
+    :Review terms and conditions;
+    :Proceed to payment;
+    :Stripe payment processing (MYR);
+    
+    if (Payment successful?) then (Yes)
+      :Create rental record;
+      :Send confirmation notifications;
+      :Update item availability;
+      :Enable messaging with owner;
+      :Rental active;
+    else (No)
+      :Payment failed;
+      :Return to payment page;
+      stop
+    endif
+    
+  else (No)
+    :Continue browsing;
+  endif
+
+elseif (User action?) then (List Item)
+  :Create new item listing;
+  :Upload item images;
+  :Set pricing and description;
+  :Configure availability calendar;
+  :Publish listing;
+  :Item available for rent;
+
+elseif (User action?) then (Manage Rentals)
+  :View rental dashboard;
+  
+  if (User role?) then (Owner)
+    :View incoming bookings;
+    :Confirm/decline requests;
+    :Manage item availability;
+    :Track rental status;
+    :Confirm pickup/return;
+  else (Renter)
+    :View active rentals;
+    :Track rental status;
+    :Confirm pickup/return;
+    :Leave reviews;
+  endif
+
+elseif (User action?) then (Messages)
+  :Open messaging interface;
+  :View conversations;
+  :Send/receive real-time messages;
+  :Coordinate pickup/return;
+
+endif
+
+:System sends notifications;
+note right: Telegram bot notifications\nfor booking updates,\nreminders, and alerts
+
+if (Rental completed?) then (Yes)
+  :Process return;
+  :Update rental status;
+  :Release payment to owner;
+  :Enable review system;
+  :Send completion notifications;
+else (No)
+  :Continue rental monitoring;
+endif
+
+:Update user dashboard;
+:Session management;
+
+if (User wants to continue?) then (Yes)
+  :Return to dashboard;
+else (No)
+  :Logout;
+  stop
+endif
+
+@enduml

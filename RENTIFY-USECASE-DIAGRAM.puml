@@ -1,0 +1,106 @@
+@startuml Rentify Use Case Diagram
+!theme plain
+title Rentify Use Case Diagram
+
+top to bottom direction
+
+' Actors positioned vertically
+actor "User (Renter)" as Renter
+
+' System boundary
+rectangle "Rentify Platform" {
+
+  ' Authentication Section
+  package "Authentication" {
+    usecase "User Setup Profile" as UserSetup
+    usecase "Login as renter" as LoginRenter
+    usecase "Register as renter" as RegisterRenter
+  }
+
+  ' Browsing Section
+  package "Item Discovery" {
+    usecase "Browse Available Items" as BrowseItems
+    usecase "Filter Location" as FilterLocation
+    usecase "View Item Details" as ViewDetails
+  }
+
+  ' Rental Process Section
+  package "Rental Process" {
+    usecase "Chat with item owner" as ChatOwner
+    usecase "Request to Rent Item" as RequestRent
+    usecase "Make Payment (via Payment Gateway)" as MakePayment
+    usecase "Receive Rental Confirmation" as ReceiveConfirmation
+  }
+
+  ' Post-Rental Section
+  package "Post-Rental" {
+    usecase "Return Item" as ReturnItem
+    usecase "Rate/Review" as RateReview
+    usecase "Receive Telegram Notifications" as ReceiveNotifications
+  }
+
+}
+
+actor "User (Item Owner)" as Owner
+
+rectangle "Owner Functions" {
+
+  ' Owner Authentication
+  package "Owner Auth" {
+    usecase "Login as item owner" as LoginOwner
+    usecase "Register as item owner" as RegisterOwner
+  }
+
+  ' Owner Management
+  package "Listing Management" {
+    usecase "Manage Own Listings (Add/Edit/Delete)" as ManageOwnListings
+    usecase "Chat with renter" as ChatRenter
+    usecase "Approve/Reject Rental Requests" as ApproveReject
+    usecase "Receive Payment Confirmation" as ReceivePayment
+  }
+
+}
+
+actor "Telegram Bot" as TelegramBot
+
+rectangle "Notification System" {
+  usecase "Send Rental Reminder to User" as SendReminder
+  usecase "Notify Return Deadline" as NotifyDeadline
+}
+
+' Renter relationships - connecting to authentication
+Renter --> LoginRenter
+Renter --> RegisterRenter
+
+' Renter relationships - connecting to browsing
+Renter --> BrowseItems
+Renter --> RequestRent
+
+' Renter relationships - connecting to post-rental
+Renter --> ReceiveNotifications
+Renter --> ReturnItem
+Renter --> RateReview
+
+' Owner relationships
+Owner --> LoginOwner
+Owner --> RegisterOwner
+Owner --> ManageOwnListings
+Owner --> ChatRenter
+Owner --> ApproveReject
+Owner --> ReceivePayment
+
+' Telegram Bot relationships
+TelegramBot --> SendReminder
+TelegramBot --> NotifyDeadline
+
+' Include relationships (dotted lines)
+RegisterRenter ..> UserSetup : <<include>>
+RegisterOwner ..> UserSetup : <<include>>
+BrowseItems ..> FilterLocation : <<extend>>
+BrowseItems ..> ViewDetails : <<extend>>
+RequestRent ..> ChatOwner : <<extend>>
+RequestRent ..> MakePayment : <<include>>
+MakePayment ..> ReceiveConfirmation : <<include>>
+ChatRenter ..> ApproveReject : <<extend>>
+
+@enduml

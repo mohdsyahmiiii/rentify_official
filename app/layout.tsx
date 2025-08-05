@@ -7,6 +7,7 @@ import { Suspense } from "react"
 import { ChatModalProvider } from "@/contexts/chat-modal-context"
 import { UserProvider } from "@/contexts/user-context"
 import { LayoutWrapper } from "@/components/layout-wrapper"
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -29,6 +30,7 @@ export default function RootLayout({
             <LayoutWrapper>
               <Suspense>{children}</Suspense>
             </LayoutWrapper>
+            <Toaster />
 
         {/* Footer */}
         <footer className="bg-black text-white py-12 mt-16">

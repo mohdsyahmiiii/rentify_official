@@ -367,9 +367,13 @@ export default function CheckoutPage() {
         // Simulate a brief processing delay
         await new Promise(resolve => setTimeout(resolve, 1000))
 
-        // Nuclear option: Force complete auth reinitialize after demo checkout
-        console.log('💥 Checkout: Triggering auth reinitialize after demo checkout')
-        await forceReinitialize()
+        // Nuclear option: Force complete auth reinitialize after demo checkout (conditional)
+        try {
+          console.log('💥 Checkout: Triggering auth reinitialize after demo checkout')
+          await forceReinitialize()
+        } catch (err) {
+          console.warn('⚠️ Checkout: Nuclear option failed, continuing anyway:', err)
+        }
 
         setStep(4) // Go to confirmation step
         return
@@ -399,9 +403,13 @@ export default function CheckoutPage() {
       const { url } = await response.json()
 
       if (url) {
-        // Nuclear option: Force complete auth reinitialize before Stripe redirect
-        console.log('💥 Checkout: Triggering auth reinitialize before Stripe redirect')
-        await forceReinitialize()
+        // Nuclear option: Force complete auth reinitialize before Stripe redirect (conditional)
+        try {
+          console.log('💥 Checkout: Triggering auth reinitialize before Stripe redirect')
+          await forceReinitialize()
+        } catch (err) {
+          console.warn('⚠️ Checkout: Nuclear option failed, continuing anyway:', err)
+        }
 
         // Redirect to Stripe Checkout
         window.location.href = url

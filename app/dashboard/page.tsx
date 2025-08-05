@@ -371,9 +371,13 @@ export default function DashboardPage() {
             description: "Return process has been started successfully.",
           })
 
-          // Nuclear option: Force complete auth reinitialize
-          console.log('💥 Dashboard: Triggering auth reinitialize after return initiation')
-          await forceReinitialize()
+          // Nuclear option: Force complete auth reinitialize (conditional)
+          try {
+            console.log('💥 Dashboard: Triggering auth reinitialize after return initiation')
+            await forceReinitialize()
+          } catch (err) {
+            console.warn('⚠️ Dashboard: Nuclear option failed, continuing anyway:', err)
+          }
 
           // Production-safe data refresh with session protection
           await refreshDataSafely('return_initiated', rentalId)
@@ -406,9 +410,13 @@ export default function DashboardPage() {
             description: "Item return has been confirmed successfully.",
           })
 
-          // Nuclear option: Force complete auth reinitialize
-          console.log('💥 Dashboard: Triggering auth reinitialize after return confirmation')
-          await forceReinitialize()
+          // Nuclear option: Force complete auth reinitialize (conditional)
+          try {
+            console.log('💥 Dashboard: Triggering auth reinitialize after return confirmation')
+            await forceReinitialize()
+          } catch (err) {
+            console.warn('⚠️ Dashboard: Nuclear option failed, continuing anyway:', err)
+          }
 
           // Production-safe data refresh with session protection
           await refreshDataSafely('return_confirmed', rentalId)
@@ -438,9 +446,13 @@ export default function DashboardPage() {
             description: "You have successfully confirmed receiving the item. Your rental is now active!",
           })
 
-          // Nuclear option: Force complete auth reinitialize
-          console.log('💥 Dashboard: Triggering auth reinitialize after pickup confirmation')
-          await forceReinitialize()
+          // Nuclear option: Force complete auth reinitialize (conditional)
+          try {
+            console.log('💥 Dashboard: Triggering auth reinitialize after pickup confirmation')
+            await forceReinitialize()
+          } catch (err) {
+            console.warn('⚠️ Dashboard: Nuclear option failed, continuing anyway:', err)
+          }
 
           // Production-safe data refresh with session protection
           await refreshDataSafely('pickup_confirmed', rentalId)

@@ -46,10 +46,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log(`🔍 UserContext: Fetching initial user... (attempt ${retryCount + 1}/${maxRetries + 1})`)
 
-        // Add timeout to the auth request itself
+        // Add timeout to the auth request itself (reduced to 8 seconds)
         const authPromise = supabase.auth.getUser()
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Auth request timeout')), 15000)
+          setTimeout(() => reject(new Error('Auth request timeout')), 8000)
         )
 
         const { data: { user }, error: authError } = await Promise.race([
@@ -60,15 +60,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (authError) {
           console.error('❌ UserContext: Auth error:', authError)
 
-          // Retry on certain errors
+          // Retry on certain errors (reduced retry delay)
           if (retryCount < maxRetries && (
             authError.message.includes('timeout') ||
             authError.message.includes('network') ||
             authError.message.includes('fetch') ||
             authError.message.includes('Failed to fetch')
           )) {
-            console.log(`🔄 UserContext: Retrying auth request in 2 seconds...`)
-            setTimeout(() => getUser(retryCount + 1), 2000)
+            console.log(`🔄 UserContext: Retrying auth request in 1 second...`)
+            setTimeout(() => getUser(retryCount + 1), 1000)
             return
           }
 
@@ -82,7 +82,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       } catch (err: any) {
         console.error('❌ UserContext: Unexpected error during user fetch:', err)
 
-        // Retry on network errors
+        // Retry on network errors (reduced retry delay)
         if (retryCount < maxRetries && (
           err.message.includes('timeout') ||
           err.message.includes('network') ||
@@ -90,8 +90,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           err.message.includes('Failed to fetch') ||
           err.name === 'TypeError'
         )) {
-          console.log(`🔄 UserContext: Retrying after error in 2 seconds...`)
-          setTimeout(() => getUser(retryCount + 1), 2000)
+          console.log(`🔄 UserContext: Retrying after error in 1 second...`)
+          setTimeout(() => getUser(retryCount + 1), 1000)
           return
         }
 
@@ -309,25 +309,35 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setUser(null)
 
       // Wait a moment for state to clear
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await new Promise(resolve => setTimeout(resolve, 300))
 
       // Create completely fresh client
       const freshClient = createClient()
 
-      // Get user with fresh client
-      const { data: { user: freshUser }, error: freshError } = await freshClient.auth.getUser()
+      // Get user with fresh client and timeout protection
+      const authPromise = freshClient.auth.getUser()
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Nuclear auth timeout')), 5000)
+      )
+
+      const { data: { user: freshUser }, error: freshError } = await Promise.race([
+        authPromise,
+        timeoutPromise
+      ]) as any
 
       if (freshError) {
         console.error('❌ UserContext: Fresh auth failed:', freshError)
-        setError('Authentication failed - please refresh the page')
+        // Don't set error state - just log it and continue
+        setUser(null)
       } else {
-        console.log('✅ UserContext: Fresh auth successful')
+        console.log('✅ UserContext: Fresh auth successful:', freshUser ? 'authenticated' : 'not authenticated')
         setUser(freshUser)
         setError(null)
       }
     } catch (error) {
       console.error('❌ UserContext: Force reinitialize failed:', error)
-      setError('Authentication error - please refresh the page')
+      // Don't set error state - just continue silently
+      setUser(null)
     } finally {
       setLoading(false)
     }

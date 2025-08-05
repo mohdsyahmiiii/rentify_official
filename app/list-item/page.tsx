@@ -199,9 +199,13 @@ export default function ListItemPage() {
       console.log("Item created successfully!")
       setSuccess("Item listed successfully! Your item is now live and available for rent.")
 
-      // Nuclear option: Force complete auth reinitialize after item creation
-      console.log('💥 ListItem: Triggering auth reinitialize after item creation')
-      await forceReinitialize()
+      // Nuclear option: Force complete auth reinitialize after item creation (conditional)
+      try {
+        console.log('💥 ListItem: Triggering auth reinitialize after item creation')
+        await forceReinitialize()
+      } catch (err) {
+        console.warn('⚠️ ListItem: Nuclear option failed, continuing anyway:', err)
+      }
 
       setTimeout(() => {
         router.push("/dashboard")

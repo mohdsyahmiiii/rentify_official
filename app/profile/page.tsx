@@ -155,9 +155,13 @@ export default function ProfilePage() {
         setProfile({ ...profile, ...formData })
         setSaveMessage({ type: 'success', text: 'Profile updated successfully!' })
 
-        // Nuclear option: Force complete auth reinitialize after profile update
-        console.log('💥 Profile: Triggering auth reinitialize after profile update')
-        await forceReinitialize()
+        // Nuclear option: Force complete auth reinitialize after profile update (conditional)
+        try {
+          console.log('💥 Profile: Triggering auth reinitialize after profile update')
+          await forceReinitialize()
+        } catch (err) {
+          console.warn('⚠️ Profile: Nuclear option failed, continuing anyway:', err)
+        }
 
         // Clear success message after 3 seconds
         setTimeout(() => setSaveMessage(null), 3000)

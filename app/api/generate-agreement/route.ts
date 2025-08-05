@@ -58,64 +58,86 @@ export async function POST(request: NextRequest) {
     const itemData = rental.items
     const renterData = rental.profiles
 
-    // Generate custom agreement using DeepSeek AI
-    const { text: agreement } = await generateText({
-      model: deepseek("deepseek-chat"),
-      system: `You are a legal document generator specializing in rental agreements for Malaysia. Generate a comprehensive, legally sound rental agreement that complies with Malaysian law and is fair to both parties. Use Malaysian Ringgit (RM) currency format and include all necessary clauses for protection and clarity. Make the language professional yet easy to understand. IMPORTANT: This rental platform operates on a MEET-UP ONLY basis - there is no delivery service, all item collection and return must be arranged through direct meet-up between the parties.`,
-      prompt: `Generate a detailed rental agreement for the following rental:
+    // Generate custom agreement using DeepSeek AI with timeout and error handling
+    let agreement
+    try {
+      // Add timeout to prevent hanging (25 seconds to stay under Vercel 30s limit)
+      const generatePromise = generateText({
+        model: deepseek("deepseek-chat"),
+        system: `You are a legal document generator for Malaysian rental agreements. Generate a comprehensive rental agreement that complies with Malaysian law. Use Malaysian Ringgit (RM) currency. MEET-UP ONLY platform - no delivery service.`,
+        prompt: `Generate a Malaysian rental agreement for:
+
+Item: ${itemData.title}
+Daily Rate: RM${rental.price_per_day}
+Period: ${rental.start_date} to ${rental.end_date} (${rental.total_days} days)
+Total: RM${rental.total_amount}
+Security Deposit: RM${itemData.security_deposit || 0}
+
+Owner: ${itemData.profiles.full_name} (${itemData.profiles.email})
+Renter: ${renterData.full_name} (${renterData.email})
+
+Generate a rental agreement with:
+1. Parties and item details
+2. Rental period and payment (RM currency)
+3. Meet-up collection/return (no delivery)
+4. Security deposit and damage policy
+5. Cancellation terms
+6. Signatures section
+
+Format with clear headings and professional language.`,
+      })
+
+      // Create timeout promise
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('AI generation timeout')), 25000)
+      )
+
+      // Race between generation and timeout
+      const result = await Promise.race([generatePromise, timeoutPromise]) as any
+      agreement = result.text
+
+    } catch (aiError: any) {
+      console.error("AI generation failed:", aiError.message || aiError)
+
+      // Fallback to basic template if AI fails
+      agreement = `RENTAL AGREEMENT
+
+PARTIES:
+Owner (Lessor): ${itemData.profiles.full_name}
+Email: ${itemData.profiles.email}
+Phone: ${itemData.profiles.phone || "Not provided"}
+
+Renter (Lessee): ${renterData.full_name}
+Email: ${renterData.email}
+Phone: ${renterData.phone || "Not provided"}
 
 ITEM DETAILS:
-- Item: ${itemData.title}
-- Description: ${itemData.description}
-- Features: ${itemData.features?.join(", ") || "N/A"}
-- Daily Rate: RM${rental.price_per_day}
-- Security Deposit: RM${itemData.security_deposit || 0}
+Item: ${itemData.title}
+Description: ${itemData.description}
+Daily Rate: RM${rental.price_per_day}
+Security Deposit: RM${itemData.security_deposit || 0}
 
 RENTAL PERIOD:
-- Start Date: ${rental.start_date}
-- End Date: ${rental.end_date}
-- Total Days: ${rental.total_days}
-- Total Amount: RM${rental.total_amount}
+Start Date: ${rental.start_date}
+End Date: ${rental.end_date}
+Total Days: ${rental.total_days}
+Total Amount: RM${rental.total_amount}
 
-OWNER (LESSOR):
-- Name: ${itemData.profiles.full_name}
-- Email: ${itemData.profiles.email}
-- Phone: ${itemData.profiles.phone || "Not provided"}
-- Location: ${itemData.profiles.location}
+TERMS AND CONDITIONS:
+1. This is a peer-to-peer rental agreement governed by Malaysian law.
+2. Collection and return must be arranged through direct meet-up (no delivery service).
+3. Renter is responsible for the item's care and safe return.
+4. Security deposit will be refunded upon satisfactory return of the item.
+5. Late returns incur a fee of RM${itemData.late_fee_per_day || 10} per day.
+6. Any damage beyond normal wear and tear will be deducted from the security deposit.
+7. Cancellation must be made 24 hours in advance for full refund.
 
-RENTER (LESSEE):
-- Name: ${renterData.full_name}
-- Email: ${renterData.email}
-- Phone: ${renterData.phone || "Not provided"}
-- Location: ${renterData.location}
+SIGNATURES:
+Owner: _________________________ Date: _________
+Renter: ________________________ Date: _________
 
-POLICIES:
-- Cancellation Policy: ${itemData.cancellation_policy || "Standard 24-hour cancellation policy"}
-- Damage Policy: ${itemData.damage_policy || "Renter is responsible for any damage beyond normal wear and tear"}
-- Late Fee: RM${itemData.late_fee_per_day || 10} per day for late returns
-
-MEET-UP ARRANGEMENT:
-- Collection Method: Meet-up with owner (no delivery service)
-- Meet-up Location: To be arranged between parties
-- Special Instructions: ${rental.special_instructions || "None"}
-
-Please generate a comprehensive rental agreement that includes:
-1. Parties identification with full contact details
-2. Item description and condition assessment
-3. Rental period and payment terms (in Malaysian Ringgit)
-4. Security deposit terms and refund conditions
-5. Meet-up arrangements and collection/return responsibilities
-6. Care and maintenance responsibilities
-7. Damage and liability clauses
-8. Cancellation and return policies
-9. Late fees and penalties
-10. Insurance and risk allocation
-11. Dispute resolution (Malaysian jurisdiction)
-12. Force majeure clause
-13. Signatures section with date and location
-
-Format the agreement with clear headings, numbered sections, and professional legal language suitable for Malaysia. Include a proper title "RENTAL AGREEMENT" at the top. Make it comprehensive yet easy to understand for both parties.`,
-    })
+This agreement is binding upon both parties and governed by Malaysian law.`
+    }
 
     // Save the generated agreement to the database
     const { error: updateError } = await supabase

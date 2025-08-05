@@ -34,7 +34,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     timeoutRef.current = setTimeout(() => {
       console.error('⚠️ UserContext: Auth initialization taking too long (>30s)')
       if (loading) {
-        setError('Authentication timeout - please refresh the page')
+        // Only show error if there was a previous session, otherwise just stop loading
+        console.log('⚠️ UserContext: Stopping auth initialization, no error for new users')
         setLoading(false)
       }
     }, 30000)
@@ -72,7 +73,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             return
           }
 
-          setError(authError.message)
+          // Don't show auth errors for users who were never logged in
+          console.log('⚠️ UserContext: Auth error (not showing to user):', authError.message)
           setUser(null)
         } else {
           console.log('✅ UserContext: Initial user fetched:', user ? 'authenticated' : 'not authenticated')
@@ -95,7 +97,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           return
         }
 
-        setError('Failed to authenticate - please check your connection')
+        // Don't show connection errors for users who were never logged in
+        console.log('⚠️ UserContext: Connection error (not showing to user):', err.message)
         setUser(null)
       } finally {
         // Only set loading to false if this is the final attempt or success
@@ -179,13 +182,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             }
 
             console.error('❌ UserContext: All session refresh attempts failed')
-            setError('Session expired - please refresh the page')
+            // Only show session expired error if user was previously authenticated
+            console.log('⚠️ UserContext: Session refresh failed, user will need to re-login when needed')
           }
         } catch (err: any) {
           console.error('❌ UserContext: Error during visibility change handling:', err)
-          if (err.message.includes('timeout')) {
-            setError('Connection timeout - please check your internet')
-          }
+          // Don't show connection errors to users who aren't logged in
+          console.log('⚠️ UserContext: Connection issue during visibility change, will retry later')
         }
       }
     }

@@ -138,24 +138,53 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
     )
 
-    // Handle page visibility changes to refresh session when user returns
+    // Enhanced page visibility handling for production stability
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible' && user) {
         console.log('👁️ UserContext: Page became visible, checking session health')
         try {
-          const { data: { user: currentUser }, error } = await supabase.auth.getUser()
+          // Add timeout to prevent hanging
+          const healthCheckPromise = supabase.auth.getUser()
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Health check timeout')), 5000)
+          )
+
+          const { data: { user: currentUser }, error } = await Promise.race([
+            healthCheckPromise,
+            timeoutPromise
+          ]) as any
+
           if (error || !currentUser) {
             console.log('⚠️ UserContext: Session appears invalid, attempting refresh')
-            // Call the refresh function directly instead of using the context function
-            const { data: { session }, error: refreshError } = await supabase.auth.refreshSession()
-            if (refreshError) {
-              console.error('❌ UserContext: Session refresh failed on visibility change:', refreshError)
-            } else {
-              setUser(session?.user ?? null)
+
+            // Enhanced session refresh with retry logic
+            let refreshAttempts = 0
+            const maxRefreshAttempts = 2
+
+            while (refreshAttempts < maxRefreshAttempts) {
+              try {
+                const { data: { session }, error: refreshError } = await supabase.auth.refreshSession()
+                if (!refreshError && session?.user) {
+                  console.log('✅ UserContext: Session refreshed successfully on visibility change')
+                  setUser(session.user)
+                  setError(null)
+                  return
+                }
+                refreshAttempts++
+              } catch (refreshErr) {
+                refreshAttempts++
+                console.warn(`⚠️ UserContext: Refresh attempt ${refreshAttempts} failed:`, refreshErr)
+              }
             }
+
+            console.error('❌ UserContext: All session refresh attempts failed')
+            setError('Session expired - please refresh the page')
           }
-        } catch (err) {
-          console.error('❌ UserContext: Error checking session on visibility change:', err)
+        } catch (err: any) {
+          console.error('❌ UserContext: Error during visibility change handling:', err)
+          if (err.message.includes('timeout')) {
+            setError('Connection timeout - please check your internet')
+          }
         }
       }
     }

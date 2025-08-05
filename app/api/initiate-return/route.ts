@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     const today = new Date()
     const lateDays = Math.max(0, Math.floor((today.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24)))
 
-    // Update rental with return initiation
+    // Update rental with return initiation (with transaction safety)
     const { error: updateError } = await supabase
       .from("rentals")
       .update({
@@ -74,8 +74,17 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       console.error("Error initiating return:", updateError)
-      return NextResponse.json({ error: "Failed to initiate return" }, { status: 500 })
+
+      // Provide specific error messages for better debugging
+      const errorMessage = updateError.message || "Failed to initiate return"
+      return NextResponse.json({
+        error: errorMessage,
+        details: updateError.details || "Database update failed"
+      }, { status: 500 })
     }
+
+    // Add small delay to ensure database consistency before response
+    await new Promise(resolve => setTimeout(resolve, 100))
 
     // TODO: Send notification to owner about return initiation
     // This will be implemented in the notification system

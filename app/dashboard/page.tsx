@@ -291,10 +291,59 @@ export default function DashboardPage() {
         return
       }
 
-      // Refresh dashboard data to show updated availability
-      fetchDashboardData()
+      // Production-safe data refresh
+      await refreshDataSafely('item_availability_updated', itemId)
     } catch (error) {
       console.error('Error toggling item availability:', error)
+    }
+  }
+
+  // Production-safe data refresh function with session protection
+  const refreshDataSafely = async (actionType: string, resourceId: string) => {
+    try {
+      console.log(`🔄 Dashboard: Safe refresh after ${actionType} for ${resourceId}`)
+
+      // Add delay to prevent database race conditions
+      await new Promise(resolve => setTimeout(resolve, 1500))
+
+      // Check session health before refresh
+      const supabase = createClient()
+      const { data: { user }, error: sessionError } = await supabase.auth.getUser()
+
+      if (sessionError || !user) {
+        console.warn('⚠️ Dashboard: Session issue detected, attempting recovery')
+
+        // Try session refresh
+        const { error: refreshError } = await supabase.auth.refreshSession()
+        if (refreshError) {
+          console.error('❌ Dashboard: Session refresh failed, skipping data refresh')
+          toast({
+            title: "Session Issue",
+            description: "Please refresh the page to see updated data.",
+            variant: "destructive",
+          })
+          return
+        }
+      }
+
+      // Perform safe data refresh with timeout
+      const refreshPromise = fetchDashboardData()
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Refresh timeout')), 10000)
+      )
+
+      await Promise.race([refreshPromise, timeoutPromise])
+      console.log('✅ Dashboard: Safe refresh completed successfully')
+
+    } catch (error) {
+      console.error('❌ Dashboard: Safe refresh failed:', error)
+
+      // Show user-friendly message instead of breaking the UI
+      toast({
+        title: "Refresh Issue",
+        description: "Action completed successfully. Please refresh the page to see updates.",
+        variant: "default",
+      })
     }
   }
 
@@ -319,13 +368,14 @@ export default function DashboardPage() {
             title: "Return Initiated",
             description: "Return process has been started successfully.",
           })
-          // Refresh dashboard data
-          fetchDashboardData()
+
+          // Production-safe data refresh with session protection
+          await refreshDataSafely('return_initiated', rentalId)
         } else {
           console.error('Failed to initiate return:', data.error)
           toast({
             title: "Error",
-            description: "Failed to initiate return. Please try again.",
+            description: data.error || "Failed to initiate return. Please try again.",
             variant: "destructive",
           })
         }
@@ -349,13 +399,14 @@ export default function DashboardPage() {
             title: "Return Confirmed",
             description: "Item return has been confirmed successfully.",
           })
-          // Refresh dashboard data
-          fetchDashboardData()
+
+          // Production-safe data refresh with session protection
+          await refreshDataSafely('return_confirmed', rentalId)
         } else {
           console.error('Failed to confirm return:', data.error)
           toast({
             title: "Error",
-            description: "Failed to confirm return. Please try again.",
+            description: data.error || "Failed to confirm return. Please try again.",
             variant: "destructive",
           })
         }
@@ -376,13 +427,14 @@ export default function DashboardPage() {
             title: "Item Received",
             description: "You have successfully confirmed receiving the item. Your rental is now active!",
           })
-          // Refresh dashboard data
-          fetchDashboardData()
+
+          // Production-safe data refresh with session protection
+          await refreshDataSafely('pickup_confirmed', rentalId)
         } else {
           console.error('Failed to confirm pickup:', data.error)
           toast({
             title: "Error",
-            description: "Failed to confirm pickup. Please try again.",
+            description: data.error || "Failed to confirm pickup. Please try again.",
             variant: "destructive",
           })
         }

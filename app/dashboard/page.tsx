@@ -15,6 +15,7 @@ import { MessagesList } from "@/components/messages-list"
 import { DashboardRecovery } from "@/components/dashboard-recovery"
 import { ReviewForm } from "@/components/review-form"
 import { useToast } from "@/hooks/use-toast"
+import { useUser } from "@/contexts/user-context"
 import type { User } from "@supabase/supabase-js"
 
 // Define types for our data

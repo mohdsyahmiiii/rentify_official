@@ -9,6 +9,7 @@ interface UserContextType {
   loading: boolean
   error: string | null
   refreshSession: () => Promise<void>
+  forceReinitialize: () => Promise<void>
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined)
@@ -297,8 +298,43 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Nuclear option: Force complete auth reinitialize
+  const forceReinitialize = async () => {
+    console.log('💥 UserContext: Force reinitializing auth state')
+    setLoading(true)
+    setError(null)
+
+    try {
+      // Clear all state
+      setUser(null)
+
+      // Wait a moment for state to clear
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Create completely fresh client
+      const freshClient = createClient()
+
+      // Get user with fresh client
+      const { data: { user: freshUser }, error: freshError } = await freshClient.auth.getUser()
+
+      if (freshError) {
+        console.error('❌ UserContext: Fresh auth failed:', freshError)
+        setError('Authentication failed - please refresh the page')
+      } else {
+        console.log('✅ UserContext: Fresh auth successful')
+        setUser(freshUser)
+        setError(null)
+      }
+    } catch (error) {
+      console.error('❌ UserContext: Force reinitialize failed:', error)
+      setError('Authentication error - please refresh the page')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <UserContext.Provider value={{ user, loading, error, refreshSession }}>
+    <UserContext.Provider value={{ user, loading, error, refreshSession, forceReinitialize }}>
       {children}
     </UserContext.Provider>
   )

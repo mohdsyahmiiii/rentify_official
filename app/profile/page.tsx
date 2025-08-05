@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { User, Mail, Phone, Calendar, Star, Shield } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { TelegramLink } from "@/components/telegram-link"
+import { useUser } from "@/contexts/user-context"
 
 interface UserProfile {
   id: string
@@ -30,6 +31,7 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
+  const { forceReinitialize } = useUser()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -152,6 +154,10 @@ export default function ProfilePage() {
         console.log("✅ Profile: Update successful!")
         setProfile({ ...profile, ...formData })
         setSaveMessage({ type: 'success', text: 'Profile updated successfully!' })
+
+        // Nuclear option: Force complete auth reinitialize after profile update
+        console.log('💥 Profile: Triggering auth reinitialize after profile update')
+        await forceReinitialize()
 
         // Clear success message after 3 seconds
         setTimeout(() => setSaveMessage(null), 3000)

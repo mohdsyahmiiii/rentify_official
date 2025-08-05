@@ -14,6 +14,7 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { ImageUpload } from "@/components/image-upload"
 import { LocationSelector } from "@/components/location-selector"
+import { useUser } from "@/contexts/user-context"
 
 const categories = [
   { id: "electronics", name: "Electronics" },
@@ -25,6 +26,7 @@ const categories = [
 ]
 
 export default function ListItemPage() {
+  const { forceReinitialize } = useUser()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
@@ -196,6 +198,11 @@ export default function ListItemPage() {
 
       console.log("Item created successfully!")
       setSuccess("Item listed successfully! Your item is now live and available for rent.")
+
+      // Nuclear option: Force complete auth reinitialize after item creation
+      console.log('💥 ListItem: Triggering auth reinitialize after item creation')
+      await forceReinitialize()
+
       setTimeout(() => {
         router.push("/dashboard")
       }, 2000)

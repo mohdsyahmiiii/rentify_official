@@ -19,6 +19,7 @@ import { loadStripe } from "@stripe/stripe-js"
 import { createClient } from "@/lib/supabase/client"
 import { RentalAgreement } from "@/components/rental-agreement"
 import { formatCurrency } from "@/lib/utils/currency"
+import { useUser } from "@/contexts/user-context"
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -39,6 +40,7 @@ interface ItemData {
 }
 
 export default function CheckoutPage() {
+  const { forceReinitialize } = useUser()
   const searchParams = useSearchParams()
   const itemId = searchParams.get('item')
 
@@ -364,6 +366,11 @@ export default function CheckoutPage() {
       if (rentalId.startsWith('demo-rental-')) {
         // Simulate a brief processing delay
         await new Promise(resolve => setTimeout(resolve, 1000))
+
+        // Nuclear option: Force complete auth reinitialize after demo checkout
+        console.log('💥 Checkout: Triggering auth reinitialize after demo checkout')
+        await forceReinitialize()
+
         setStep(4) // Go to confirmation step
         return
       }
@@ -392,6 +399,10 @@ export default function CheckoutPage() {
       const { url } = await response.json()
 
       if (url) {
+        // Nuclear option: Force complete auth reinitialize before Stripe redirect
+        console.log('💥 Checkout: Triggering auth reinitialize before Stripe redirect')
+        await forceReinitialize()
+
         // Redirect to Stripe Checkout
         window.location.href = url
       } else {

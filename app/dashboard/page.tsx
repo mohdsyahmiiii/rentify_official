@@ -15,6 +15,7 @@ import { MessagesList } from "@/components/messages-list"
 import { DashboardRecovery } from "@/components/dashboard-recovery"
 import { ReviewForm } from "@/components/review-form"
 import { useToast } from "@/hooks/use-toast"
+import { resetClientAfterAction } from "@/lib/supabase/client-reset"
 import type { User } from "@supabase/supabase-js"
 
 // Define types for our data
@@ -369,6 +370,12 @@ export default function DashboardPage() {
             description: "Return process has been started successfully.",
           })
 
+          // Attempt client reset to prevent session corruption
+          const resetSuccess = await resetClientAfterAction('return_initiated')
+          if (resetSuccess) {
+            console.log('✅ Dashboard: Client reset successful after return initiation')
+          }
+
           // Production-safe data refresh with session protection
           await refreshDataSafely('return_initiated', rentalId)
         } else {
@@ -400,6 +407,12 @@ export default function DashboardPage() {
             description: "Item return has been confirmed successfully.",
           })
 
+          // Attempt client reset to prevent session corruption
+          const resetSuccess = await resetClientAfterAction('return_confirmed')
+          if (resetSuccess) {
+            console.log('✅ Dashboard: Client reset successful after return confirmation')
+          }
+
           // Production-safe data refresh with session protection
           await refreshDataSafely('return_confirmed', rentalId)
         } else {
@@ -427,6 +440,12 @@ export default function DashboardPage() {
             title: "Item Received",
             description: "You have successfully confirmed receiving the item. Your rental is now active!",
           })
+
+          // Attempt client reset to prevent session corruption
+          const resetSuccess = await resetClientAfterAction('pickup_confirmed')
+          if (resetSuccess) {
+            console.log('✅ Dashboard: Client reset successful after pickup confirmation')
+          }
 
           // Production-safe data refresh with session protection
           await refreshDataSafely('pickup_confirmed', rentalId)
